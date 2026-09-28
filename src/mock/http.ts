@@ -1,3 +1,5 @@
+import { sha256Hex } from "../shared/hash";
+
 const DOCS_URL = "https://docs.github.com/rest";
 
 export async function jsonWithEtag(
@@ -43,14 +45,4 @@ function matchesEtag(header: string | null, etag: string): boolean {
     .split(",")
     .map((tag) => tag.trim().replace(/^W\//, ""))
     .some((tag) => tag === "*" || tag === etag);
-}
-
-async function sha256Hex(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(text),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
