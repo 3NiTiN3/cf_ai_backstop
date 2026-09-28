@@ -2,12 +2,17 @@ import { DurableObject } from "cloudflare:workers";
 import { CacheStore } from "./cache";
 import { Counters, type CounterTotals } from "./counters";
 import { EventLog, type GatewayEvent } from "./events";
+import { HealthWindow } from "./health";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
 import { fromUpstream } from "./responses";
-import type { GatewayRoute } from "./routes";
+import type { GatewayRoute, Namespace } from "./routes";
 import { TrailingThrottle } from "./throttle";
-import { fetchUpstream, toUpstreamRequest } from "./upstream";
+import {
+  fetchUpstream,
+  toUpstreamRequest,
+  type UpstreamResult,
+} from "./upstream";
 
 const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
@@ -20,10 +25,14 @@ export interface RepoStats {
 export class RepoGateway extends DurableObject<Env> {
   private readonly counters = new Counters(this.ctx.storage.sql);
   private readonly events = new EventLog(this.ctx.storage.sql);
+  private readonly health = new HealthWindow(() => Date.now());
   private readonly reads = new ReadThroughCache(
     new CacheStore(this.ctx.storage.sql),
     this.counters,
-    { now: () => Date.now(), upstream: (ns, req) => fetchUpstream(ns, req) },
+    {
+      now: () => Date.now(),
+      upstream: (ns, req) => this.callUpstream(ns, req),
+    },
   );
   private route: GatewayRoute | null = null;
   private readonly reporter = new TrailingThrottle(REPORT_INTERVAL_MS, () =>
@@ -66,11 +75,20 @@ export class RepoGateway extends DurableObject<Env> {
     route: GatewayRoute,
   ): Promise<Response> {
     if (request.method === "GET") return this.reads.read(request, route);
-    const result = await fetchUpstream(
+    const result = await this.callUpstream(
       route.namespace,
       toUpstreamRequest(request, route),
     );
     return fromUpstream(result, "BYPASS");
+  }
+
+  private async callUpstream(
+    namespace: Namespace,
+    request: Request,
+  ): Promise<UpstreamResult> {
+    const result = await fetchUpstream(namespace, request);
+    this.health.record(result.outcome, result.latencyMs);
+    return result;
   }
 
   private record(event: GatewayEvent): void {
