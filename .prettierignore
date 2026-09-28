@@ -1,1 +1,5 @@
 env.d.ts
+package-lock.json
+build/
+.claude/
+CLAUDE.md

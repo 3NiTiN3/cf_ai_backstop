@@ -9,7 +9,7 @@ import {
   InputArea,
   PoweredByCloudflare,
   Switch,
-  Text
+  Text,
 } from "@cloudflare/kumo";
 import {
   BugIcon,
@@ -17,7 +17,7 @@ import {
   CircleIcon,
   PaperPlaneRightIcon,
   StopIcon,
-  TrashIcon
+  TrashIcon,
 } from "@phosphor-icons/react";
 import type { OpsAgent } from "../server";
 import { MessagePart } from "./message-part";
@@ -51,8 +51,8 @@ export function Chat() {
     onClose: useCallback(() => setConnected(false), []),
     onError: useCallback(
       (error: Event) => console.error("WebSocket error:", error),
-      []
-    )
+      [],
+    ),
   });
 
   const {
@@ -61,7 +61,7 @@ export function Chat() {
     clearHistory,
     addToolApprovalResponse,
     stop,
-    status
+    status,
   } = useAgentChat({ agent, experimental_throttle: 100 });
 
   const isStreaming = status === "streaming" || status === "submitted";

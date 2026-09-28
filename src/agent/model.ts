@@ -10,6 +10,6 @@ export function chatModel(ai: Ai, sessionAffinity: string) {
   const workersai = createWorkersAI({ binding: ai });
   return wrapLanguageModel({
     model: workersai(CHAT_MODEL, { sessionAffinity }),
-    middleware: simulateStreamingMiddleware()
+    middleware: simulateStreamingMiddleware(),
   });
 }

@@ -50,3 +50,13 @@ Why: Local dev then runs the same compatibility date that deploys. No new depend
 Context: With `@cf/meta/llama-3.3-70b-instruct-fp8-fast` on the binding, each stream chunk carries both `response` and `choices[].delta`. workers-ai-provider (3.3.1 and 4.0.0) emits both, so every token and every tool argument fragment appears twice. The upstream fix, cloudflare/ai#663, is not merged. The starter already used Workers AI, so there was no OpenAI code to remove.
 Decision: Wrap the model with the AI SDK's `simulateStreamingMiddleware`. The model is called without streaming and the result is replayed as a stream to the chat UI.
 Why: The non-streaming path is correct for both text and tool calls, which phase 4 depends on. It is one wrapper in `src/agent/model.ts` that can be removed once the provider is fixed. Cost: replies appear at once instead of token by token.
+
+## 2026-09-28  Task 0.5  Test and lint tooling versions
+Context: The plan names `@cloudflare/vitest-pool-workers`, ESLint and Prettier. The Cloudflare docs now publish the Workers test integration as `@cloudflare/vitest-plugin` (the `cloudflareTest` Vite plugin), which needs Vitest 4.1. The starter used oxlint and oxfmt.
+Decision: Use `@cloudflare/vitest-plugin` with Vitest 4.1, ESLint 10 with typescript-eslint and Prettier with defaults. Removed oxlint and oxfmt. Tests run with `remoteBindings: false` so they never call the real Workers AI service. Node globals for `scripts/*.mjs` are declared in the ESLint config instead of adding the `globals` package.
+Why: The docs win over the plan's package name. One linter and one formatter, as the plan asks.
+
+## 2026-09-28  Task 0.5  Smoke test targets worker routes, not /
+Context: The plan's smoke test expects a 200 for `/` from the worker's fetch handler. `/` is served by static assets built by Vite and never reaches the worker, so the handler correctly returns 404 there.
+Decision: The smoke test checks that an unknown path returns 404 and that a WebSocket upgrade to `/agents/ops-agent/<name>` reaches OpsAgent (101).
+Why: It tests what the worker actually owns, including the Durable Object binding and agent routing.

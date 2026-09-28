@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 0.5
-- **Last commit:** feat(ai): use Workers AI Llama 3.3 for chat (0.4)
+- **Current:** 0.6
+- **Last commit:** build: add typecheck, lint, format and test tooling (0.5)
 - **Deployed URL:** not deployed yet
 - **Public repo:** not created yet
 
@@ -19,7 +19,7 @@ None.
 - [x] 0.2 Scaffold from the agents starter
 - [x] 0.3 Rename and strip examples
 - [x] 0.4 Switch to Workers AI
-- [ ] 0.5 Quality tooling
+- [x] 0.5 Quality tooling
 - [ ] 0.6 First deploy
 - [ ] Phase 0 gate
 

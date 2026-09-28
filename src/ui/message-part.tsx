@@ -41,7 +41,7 @@ function UserText({ text }: { text: string }) {
 
 function AssistantText({
   text,
-  animating
+  animating,
 }: {
   text: string;
   animating: boolean;
@@ -67,7 +67,7 @@ export function MessagePart({
   isUser,
   isStreaming,
   isLastAssistant,
-  addToolApprovalResponse
+  addToolApprovalResponse,
 }: {
   part: Part;
   isUser: boolean;

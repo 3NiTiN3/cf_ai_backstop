@@ -36,7 +36,7 @@ function ApprovalRequest({
   toolName,
   input,
   approvalId,
-  respond
+  respond,
 }: {
   toolName: string;
   input: unknown;
@@ -92,7 +92,7 @@ function isRejected(part: UIMessage["parts"][number]) {
 
 export function ToolPartView({
   part,
-  addToolApprovalResponse
+  addToolApprovalResponse,
 }: {
   part: UIMessage["parts"][number];
   addToolApprovalResponse: ApprovalResponder;

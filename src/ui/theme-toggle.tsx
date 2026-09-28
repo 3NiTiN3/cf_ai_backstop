@@ -4,7 +4,7 @@ import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 
 export function ThemeToggle() {
   const [dark, setDark] = useState(
-    () => document.documentElement.getAttribute("data-mode") === "dark"
+    () => document.documentElement.getAttribute("data-mode") === "dark",
   );
 
   const toggle = useCallback(() => {

@@ -3,11 +3,13 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
 const root = process.cwd();
-const projectsDir = process.env.CLAUDE_PROJECTS_DIR ?? join(homedir(), ".claude", "projects");
+const projectsDir =
+  process.env.CLAUDE_PROJECTS_DIR ?? join(homedir(), ".claude", "projects");
 const planningFile = join(root, "build", "PLANNING_PROMPTS.md");
 const outputFile = join(root, "PROMPTS.md");
 
-const noise = /^(<command-|<local-command|<system-reminder|<bash-|Caveat:|\[Request interrupted)/;
+const noise =
+  /^(<command-|<local-command|<system-reminder|<bash-|Caveat:|\[Request interrupted)/;
 
 function slug(value) {
   return value.replace(/[^a-zA-Z0-9]/g, "-");
@@ -19,7 +21,10 @@ function transcriptDirs() {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
   const exact = dirs.filter((name) => name === slug(root));
-  const matches = exact.length > 0 ? exact : dirs.filter((name) => name.endsWith(slug(basename(root))));
+  const matches =
+    exact.length > 0
+      ? exact
+      : dirs.filter((name) => name.endsWith(slug(basename(root))));
   return matches.map((name) => join(projectsDir, name));
 }
 
@@ -27,7 +32,9 @@ function textOf(content) {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
   return content
-    .filter((part) => part && part.type === "text" && typeof part.text === "string")
+    .filter(
+      (part) => part && part.type === "text" && typeof part.text === "string",
+    )
     .map((part) => part.text)
     .join("\n");
 }
@@ -85,7 +92,9 @@ const parts = [
 ];
 
 if (existsSync(planningFile)) {
-  const planning = readFileSync(planningFile, "utf8").replace(/^# .*\n/, "").trim();
+  const planning = readFileSync(planningFile, "utf8")
+    .replace(/^# .*\n/, "")
+    .trim();
   parts.push("## Planning", "", planning, "");
 }
 
@@ -97,10 +106,17 @@ sessions.forEach((prompts, index) => {
 });
 
 if (sessions.length === 0) {
-  parts.push("## Build sessions", "", "No Claude Code transcripts were found for this folder yet.", "");
+  parts.push(
+    "## Build sessions",
+    "",
+    "No Claude Code transcripts were found for this folder yet.",
+    "",
+  );
 }
 
 writeFileSync(outputFile, parts.join("\n"));
 
 const count = sessions.reduce((sum, prompts) => sum + prompts.length, 0);
-console.log(`Wrote ${outputFile} with ${sessions.length} sessions and ${count} prompts.`);
+console.log(
+  `Wrote ${outputFile} with ${sessions.length} sessions and ${count} prompts.`,
+);
