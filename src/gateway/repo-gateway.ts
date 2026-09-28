@@ -9,7 +9,7 @@ import { GuardedUpstream, type GatewayMode } from "./guarded-upstream";
 import { HealthWindow, type HealthSnapshot } from "./health";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
-import { MODE_HEADER, fromUpstream } from "./responses";
+import { MODE_HEADER, fromUpstream, writeNotQueueable } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
 import { TrailingThrottle } from "./throttle";
 import {
@@ -17,6 +17,7 @@ import {
   toUpstreamRequest,
   type UpstreamResult,
 } from "./upstream";
+import { classifyWrite } from "./write-policy";
 
 const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
@@ -111,6 +112,14 @@ export class RepoGateway extends DurableObject<Env> {
     route: GatewayRoute,
   ): Promise<Response> {
     if (request.method === "GET") return this.reads.read(request, route);
+    if (this.upstream.mode() === "degraded") {
+      const write = classifyWrite(
+        request.method,
+        route.upstreamPath,
+        await request.clone().text(),
+      );
+      if (!write.queueable) return writeNotQueueable(write.reason);
+    }
     const result = await this.upstream.call(
       route.namespace,
       toUpstreamRequest(request, route),

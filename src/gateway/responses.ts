@@ -40,6 +40,16 @@ export function unavailable(retryAfterSeconds: number): Response {
   });
 }
 
+export function writeNotQueueable(reason: string): Response {
+  return Response.json(
+    { error: "write_not_queueable", reason },
+    {
+      status: 503,
+      headers: { [CACHE_HEADER]: "BYPASS", [MODE_HEADER]: "degraded" },
+    },
+  );
+}
+
 export function fromUpstream(
   result: UpstreamResult,
   cache: CacheStatus,
