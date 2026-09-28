@@ -68,6 +68,15 @@ export class CacheStore {
     );
   }
 
+  refresh(key: string, fetchedAt: number, expiresAt: number): void {
+    this.sql.exec(
+      "UPDATE cache_entries SET fetched_at = ?, expires_at = ? WHERE key = ?",
+      fetchedAt,
+      expiresAt,
+      key,
+    );
+  }
+
   recordHit(key: string): void {
     this.sql.exec(
       "UPDATE cache_entries SET hits = hits + 1 WHERE key = ?",

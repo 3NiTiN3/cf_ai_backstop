@@ -1,5 +1,6 @@
 import { env, runInDurableObject } from "cloudflare:test";
 import { CacheStore } from "../../src/gateway/cache";
+import { Counters, type CounterName } from "../../src/gateway/counters";
 import { ReadThroughCache } from "../../src/gateway/read-through";
 import { parseGatewayUrl, type GatewayRoute } from "../../src/gateway/routes";
 import type { UpstreamResult } from "../../src/gateway/upstream";
@@ -35,6 +36,7 @@ export interface Harness {
   clock: { now: number };
   upstream: FakeUpstream;
   cache: ReadThroughCache;
+  counters: () => Record<CounterName, number>;
   rows: () => Record<string, SqlStorageValue>[];
   get: (path: string, headers?: HeadersInit) => Promise<Response>;
 }
@@ -51,13 +53,18 @@ export function withHarness(
       calls: [],
       respond: () => okResult('{"n":1}'),
     };
-    const cache = new ReadThroughCache(new CacheStore(state.storage.sql), {
-      now: () => clock.now,
-      upstream: async (_namespace, request) => {
-        upstream.calls.push(request);
-        return upstream.respond(request);
+    const counters = new Counters(state.storage.sql);
+    const cache = new ReadThroughCache(
+      new CacheStore(state.storage.sql),
+      counters,
+      {
+        now: () => clock.now,
+        upstream: async (_namespace, request) => {
+          upstream.calls.push(request);
+          return upstream.respond(request);
+        },
       },
-    });
+    );
     const get = (path: string, headers: HeadersInit = {}) =>
       cache.read(
         new Request(`http://backstop.test${path}`, { headers }),
@@ -65,6 +72,13 @@ export function withHarness(
       );
     const rows = () =>
       state.storage.sql.exec("SELECT key, hits FROM cache_entries").toArray();
-    await run({ clock, upstream, cache, rows, get });
+    await run({
+      clock,
+      upstream,
+      cache,
+      rows,
+      get,
+      counters: () => counters.snapshot(),
+    });
   });
 }

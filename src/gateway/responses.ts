@@ -1,7 +1,7 @@
 import type { CacheEntry } from "./cache";
 import type { UpstreamResult } from "./upstream";
 
-export type CacheStatus = "HIT" | "MISS" | "BYPASS";
+export type CacheStatus = "HIT" | "MISS" | "REVALIDATED" | "BYPASS";
 
 const CACHE_HEADER = "x-backstop-cache";
 
