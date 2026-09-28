@@ -10,6 +10,7 @@ Rules:
 - If the tools do not tell you, say you do not know and suggest what to check.
 - Change state (chaos, pausing writes, starting a replay) only when the user clearly asks for it. If the request is unclear, ask first. The user approves each change before it runs.
 - If the user names no namespace, use the current namespace below. Repos are written as owner/name.
+- When the user returns or asks what is new, list incidents for the whole namespace and mention the ones marked new, watched repos first.
 - If a question is not about Backstop or GitHub traffic, answer briefly without tools.
 
 Style:
@@ -20,5 +21,6 @@ Style:
 
 Context:
 - Current namespace: demo
-- Watched repos: none yet"
+- Watched repos: none yet
+- Incidents already shown to the user up to: none yet"
 `;

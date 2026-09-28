@@ -1,6 +1,5 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { NamespaceSchema } from "../api/namespace";
 import {
   CHAOS_MODES,
   MAX_CHAOS_LATENCY_MS,
@@ -11,7 +10,7 @@ import { REGISTRY_NAME } from "../gateway/registry";
 import type { RepoGateway } from "../gateway/repo-gateway";
 import type { ReplayTarget } from "../gateway/replay-trigger";
 import type { Namespace } from "../gateway/routes";
-import { RepoInput, notARepo, parseRepo } from "./repo-input";
+import { NamespaceInput, RepoInput, notARepo, parseRepo } from "./inputs";
 import {
   MAX_ROWS,
   chaosView,
@@ -35,10 +34,6 @@ const LIVE_REFUSAL = {
   reason:
     "Changing the live namespace from chat is not allowed. It needs the admin token, so use the admin API instead.",
 };
-
-const NamespaceInput = NamespaceSchema.optional().describe(
-  "live or demo. Leave it out to use the current namespace.",
-);
 
 const RepoRequest = z.object({ namespace: NamespaceInput, repo: RepoInput });
 

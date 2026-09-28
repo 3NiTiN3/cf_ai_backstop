@@ -5,7 +5,7 @@ import { INITIAL_OPS_STATE, type OpsState } from "../../src/agent/state";
 const watching: OpsState = {
   namespace: "live",
   watchedRepos: ["acme/api", "acme/web"],
-  lastSeenIncidentAt: null,
+  lastSeenIncidentAt: Date.UTC(2026, 8, 29, 10, 1, 0),
 };
 
 const EM_DASH = String.fromCharCode(0x2014);
@@ -27,6 +27,9 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(watching);
     expect(prompt).toContain("Current namespace: live");
     expect(prompt).toContain("Watched repos: acme/api, acme/web");
+    expect(prompt).toContain(
+      "Incidents already shown to the user up to: 2026-09-29T10:01:00.000Z",
+    );
   });
 
   it("says when no repos are watched", () => {

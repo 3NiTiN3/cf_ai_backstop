@@ -1,5 +1,6 @@
 import type { ChaosConfig } from "../gateway/chaos";
 import type { GatewayEvent } from "../gateway/events";
+import type { RepoIncident } from "../gateway/incident-query";
 import type { QueueListing } from "../gateway/queue-control";
 import type { Overview } from "../gateway/registry";
 import type { RepoHealth } from "../gateway/repo-gateway";
@@ -96,6 +97,29 @@ export function eventView(event: GatewayEvent) {
     ...(event.cache !== "NONE" ? { cache: event.cache } : {}),
     ...(event.detail ? { detail: event.detail } : {}),
   };
+}
+
+export function incidentView(
+  incident: RepoIncident,
+  lastSeenAt: number | null,
+) {
+  return {
+    repo: incident.repo,
+    startedAt: new Date(incident.startedAt).toISOString(),
+    endedAt: isoOrNull(incident.endedAt),
+    ongoing: incident.endedAt === null,
+    peakErrorRatePercent: percent(incident.peakErrorRate),
+    readsServedStale: incident.readsServedStale,
+    writesQueued: incident.writesQueued,
+    writesReplayed: incident.writesReplayed,
+    summary: incident.summary,
+    newSinceLastSeen:
+      lastSeenAt === null || incidentTime(incident) > lastSeenAt,
+  };
+}
+
+export function incidentTime(incident: RepoIncident): number {
+  return incident.endedAt ?? incident.startedAt;
 }
 
 function percent(ratio: number): number {

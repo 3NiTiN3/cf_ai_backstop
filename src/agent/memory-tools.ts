@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { RepoInput, notARepo, parseRepo } from "./repo-input";
+import { RepoInput, notARepo, parseRepo } from "./inputs";
 import { watchRepo, type OpsState } from "./state";
 
 export interface MemoryContext {

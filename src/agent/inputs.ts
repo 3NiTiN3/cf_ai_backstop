@@ -1,5 +1,10 @@
 import { z } from "zod";
+import { NamespaceSchema } from "../api/namespace";
 import { repoKeyFromName } from "../gateway/routes";
+
+export const NamespaceInput = NamespaceSchema.optional().describe(
+  "live or demo. Leave it out to use the current namespace.",
+);
 
 export const RepoInput = z
   .string()

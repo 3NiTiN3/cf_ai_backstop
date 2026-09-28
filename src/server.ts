@@ -7,6 +7,7 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
+import { createIncidentTools } from "./agent/incident-tools";
 import { createMemoryTools } from "./agent/memory-tools";
 import { chatModel } from "./agent/model";
 import { buildSystemPrompt } from "./agent/prompt";
@@ -33,6 +34,10 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
     options?: OnChatMessageOptions,
   ) {
     const state = readOpsState(this.state);
+    const memory = {
+      state: () => readOpsState(this.state),
+      save: (next: OpsState) => this.setState(next),
+    };
     const result = streamText({
       model: chatModel(this.env.AI, this.sessionAffinity),
       system: buildSystemPrompt(state),
@@ -43,10 +48,8 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
       }),
       tools: {
         ...createOpsTools({ env: this.env, namespace: () => state.namespace }),
-        ...createMemoryTools({
-          state: () => readOpsState(this.state),
-          save: (next) => this.setState(next),
-        }),
+        ...createMemoryTools(memory),
+        ...createIncidentTools({ env: this.env, ...memory }),
       },
       prepareStep: answerAfterTools,
       stopWhen: stepCountIs(MAX_STEPS),

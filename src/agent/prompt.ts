@@ -9,6 +9,7 @@ const RULES = `Rules:
 - If the tools do not tell you, say you do not know and suggest what to check.
 - Change state (chaos, pausing writes, starting a replay) only when the user clearly asks for it. If the request is unclear, ask first. The user approves each change before it runs.
 - If the user names no namespace, use the current namespace below. Repos are written as owner/name.
+- When the user returns or asks what is new, list incidents for the whole namespace and mention the ones marked new, watched repos first.
 - If a question is not about Backstop or GitHub traffic, answer briefly without tools.`;
 
 const STYLE = `Style:
@@ -21,10 +22,19 @@ export function buildSystemPrompt(state: OpsState): string {
   return [ROLE, RULES, STYLE, context(state)].join("\n\n");
 }
 
-function context({ namespace, watchedRepos }: OpsState): string {
+function context({
+  namespace,
+  watchedRepos,
+  lastSeenIncidentAt,
+}: OpsState): string {
   const watched =
     watchedRepos.length > 0 ? watchedRepos.join(", ") : "none yet";
+  const seen =
+    lastSeenIncidentAt === null
+      ? "none yet"
+      : new Date(lastSeenIncidentAt).toISOString();
   return `Context:
 - Current namespace: ${namespace}
-- Watched repos: ${watched}`;
+- Watched repos: ${watched}
+- Incidents already shown to the user up to: ${seen}`;
 }
