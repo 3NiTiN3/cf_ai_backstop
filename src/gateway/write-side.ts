@@ -2,6 +2,11 @@ import { keyFromSecret, seal, unseal } from "../security/crypto";
 import type { GatewayEvent } from "./events";
 import type { GatewayMode } from "./guarded-upstream";
 import {
+  QueueControl,
+  type QueueChange,
+  type QueueListing,
+} from "./queue-control";
+import {
   QueueReplayer,
   type SendOutcome,
   type SettleDecision,
@@ -38,10 +43,12 @@ export class WriteSide {
   private readonly writes: WritePath;
   private readonly replayer: QueueReplayer;
   private readonly trigger: ReplayTrigger;
+  private readonly control: QueueControl;
   private keyPromise: Promise<CryptoKey> | null = null;
 
   constructor(private readonly deps: WriteSideDeps) {
     this.queue = new WriteQueue(deps.sql);
+    this.control = new QueueControl(deps.sql);
     this.trigger = new ReplayTrigger(deps.sql, {
       hasWaiting: () => this.queue.hasWaiting(),
       runner: {
@@ -103,13 +110,35 @@ export class WriteSide {
     return { paused, replay: await this.trigger.start(target, "resumed") };
   }
 
+  listQueue(): QueueListing {
+    return this.control.list();
+  }
+
+  retry(target: ReplayTarget, id: string): QueueChange {
+    const change = this.control.retry(id, Date.now());
+    if (change.ok) {
+      this.note("queue", `retry ${id}`);
+      if (this.deps.mode() === "normal") this.startFor(target, "retried");
+    }
+    return change;
+  }
+
+  drop(id: string): QueueChange {
+    const change = this.control.drop(id, Date.now());
+    if (change.ok) this.note("queue", `drop ${id}`);
+    return change;
+  }
+
   onRecovered(): void {
     this.startInBackground("recovered");
   }
 
   private startInBackground(reason: TriggerReason): void {
     const target = this.deps.target();
-    if (target === null) return;
+    if (target !== null) this.startFor(target, reason);
+  }
+
+  private startFor(target: ReplayTarget, reason: TriggerReason): void {
     this.deps.waitUntil(
       this.trigger.start(target, reason).catch(() => undefined),
     );

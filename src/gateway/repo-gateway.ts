@@ -15,6 +15,7 @@ import { TrailingThrottle } from "./throttle";
 import { fetchUpstream, type UpstreamResult } from "./upstream";
 import type { SendOutcome, SettleDecision } from "./replay-sender";
 import type { ReplayTarget, StartResult } from "./replay-trigger";
+import type { QueueChange, QueueListing } from "./queue-control";
 import { WriteSide, type PauseResult } from "./write-side";
 
 const REPORT_INTERVAL_MS = 2000;
@@ -131,6 +132,18 @@ export class RepoGateway extends DurableObject<Env> {
 
   triggerReplay(target: ReplayTarget): Promise<StartResult> {
     return this.writes.replay(target);
+  }
+
+  listQueue(): QueueListing {
+    return this.writes.listQueue();
+  }
+
+  retryQueuedWrite(target: ReplayTarget, id: string): QueueChange {
+    return this.writes.retry(target, id);
+  }
+
+  dropQueuedWrite(id: string): QueueChange {
+    return this.writes.drop(id);
   }
 
   setWritesPaused(target: ReplayTarget, paused: boolean): Promise<PauseResult> {

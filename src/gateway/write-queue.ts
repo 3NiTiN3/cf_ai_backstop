@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { SealedText } from "../security/crypto";
 
-const QUEUE_STATUSES = [
+export const QUEUE_STATUSES = [
   "pending",
   "in_flight",
   "done",
@@ -9,7 +9,7 @@ const QUEUE_STATUSES = [
   "dropped",
 ] as const;
 
-type QueueStatus = (typeof QUEUE_STATUSES)[number];
+export type QueueStatus = (typeof QUEUE_STATUSES)[number];
 
 export interface QueuedWrite {
   id: string;

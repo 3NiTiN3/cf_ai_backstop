@@ -1,57 +1,10 @@
-import type { RepoGateway } from "../gateway/repo-gateway";
 import { REGISTRY_NAME } from "../gateway/registry";
 import type { ReplayTarget } from "../gateway/replay-trigger";
 import { jsonError } from "../gateway/responses";
 import { durableObjectName, repoKeyOf } from "../gateway/routes";
 import { isAdmin } from "./auth";
 import { NamespaceSchema } from "./namespace";
-
-interface RepoAction {
-  method: string;
-  admin: boolean;
-  run: (
-    gateway: DurableObjectStub<RepoGateway>,
-    target: ReplayTarget,
-  ) => Promise<unknown>;
-}
-
-const ACTIONS = new Map<string, RepoAction>([
-  [
-    "",
-    {
-      method: "GET",
-      admin: false,
-      run: async (gateway, target) => ({
-        ...target,
-        ...(await gateway.getHealth()),
-      }),
-    },
-  ],
-  [
-    "replay",
-    {
-      method: "POST",
-      admin: true,
-      run: (gateway, target) => gateway.triggerReplay(target),
-    },
-  ],
-  [
-    "pause",
-    {
-      method: "POST",
-      admin: true,
-      run: (gateway, target) => gateway.setWritesPaused(target, true),
-    },
-  ],
-  [
-    "resume",
-    {
-      method: "POST",
-      admin: true,
-      run: (gateway, target) => gateway.setWritesPaused(target, false),
-    },
-  ],
-]);
+import { REPO_ACTIONS, type RepoAction } from "./repo-actions";
 
 export async function handleRepoRequest(
   request: Request,
@@ -62,11 +15,9 @@ export async function handleRepoRequest(
   if (repo === undefined) return jsonError(404, "Not Found");
   const target = parseTarget(namespace, owner, repo);
   if (target instanceof Response) return target;
-  const action = ACTIONS.get(rest.join("/"));
-  if (!action) return jsonError(404, "Not Found");
-  if (request.method !== action.method) {
-    return jsonError(405, "Method Not Allowed");
-  }
+  const matched = matchAction(request.method, rest.join("/"));
+  if (matched instanceof Response) return matched;
+  const { action, params } = matched;
   if (
     action.admin &&
     target.namespace === "live" &&
@@ -84,7 +35,20 @@ export async function handleRepoRequest(
   );
   if (!known) return jsonError(404, "No traffic seen for this repo yet");
   const gateway = env.RepoGateway.getByName(durableObjectName(target));
-  return Response.json(await action.run(gateway, target));
+  return action.run(gateway, target, params);
+}
+
+function matchAction(
+  method: string,
+  path: string,
+): { action: RepoAction; params: string[] } | Response {
+  const candidates = REPO_ACTIONS.flatMap((action) => {
+    const match = action.path.exec(path);
+    return match ? [{ action, params: match.slice(1) }] : [];
+  });
+  if (candidates.length === 0) return jsonError(404, "Not Found");
+  const found = candidates.find(({ action }) => action.method === method);
+  return found ?? jsonError(405, "Method Not Allowed");
 }
 
 function parseTarget(

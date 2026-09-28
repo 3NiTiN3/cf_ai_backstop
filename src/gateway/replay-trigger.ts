@@ -6,7 +6,8 @@ export interface ReplayTarget {
   repoKey: string;
 }
 
-export type TriggerReason = "recovered" | "manual" | "resumed" | "queued";
+export type TriggerReason =
+  "recovered" | "manual" | "resumed" | "queued" | "retried";
 
 export type StartResult =
   | { started: true; instanceId: string }
