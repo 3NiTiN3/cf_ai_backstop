@@ -1,9 +1,16 @@
 import { routeAgentRequest } from "agents";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
-import { convertToModelMessages, pruneMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  pruneMessages,
+  stepCountIs,
+  streamText,
+} from "ai";
 import { chatModel } from "./agent/model";
 import { buildSystemPrompt } from "./agent/prompt";
+import { answerAfterTools } from "./agent/steps";
 import { INITIAL_OPS_STATE, type OpsState } from "./agent/state";
+import { createOpsTools } from "./agent/tools";
 import { handleApiRequest } from "./api/handler";
 import { handleGatewayRequest } from "./gateway/handler";
 import { jsonError } from "./gateway/responses";
@@ -11,6 +18,8 @@ import { jsonError } from "./gateway/responses";
 export { RepoGateway } from "./gateway/repo-gateway";
 export { Registry } from "./gateway/registry";
 export { ReplayWorkflow } from "./workflows/replay";
+
+const MAX_STEPS = 5;
 
 export class OpsAgent extends AIChatAgent<Env, OpsState> {
   override initialState = INITIAL_OPS_STATE;
@@ -29,6 +38,12 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
         toolCalls: "before-last-2-messages",
         reasoning: "before-last-message",
       }),
+      tools: createOpsTools({
+        env: this.env,
+        namespace: () => this.state.namespace,
+      }),
+      prepareStep: answerAfterTools,
+      stopWhen: stepCountIs(MAX_STEPS),
       abortSignal: options?.abortSignal,
     });
 

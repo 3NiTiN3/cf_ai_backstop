@@ -1,7 +1,7 @@
-import { REGISTRY_NAME } from "../gateway/registry";
+import { findRepoGateway } from "../gateway/lookup";
 import type { ReplayTarget } from "../gateway/replay-trigger";
 import { jsonError } from "../gateway/responses";
-import { durableObjectName, repoKeyOf } from "../gateway/routes";
+import { repoKeyOf } from "../gateway/routes";
 import { isAdmin } from "./auth";
 import { NamespaceSchema } from "./namespace";
 import { REPO_ACTIONS, type RepoAction } from "./repo-actions";
@@ -28,13 +28,8 @@ export async function handleRepoRequest(
       "This action on the live namespace needs the admin token",
     );
   }
-  // Only act on repos the gateway has served, so this API never creates new objects.
-  const known = await env.Registry.getByName(REGISTRY_NAME).hasRepo(
-    target.namespace,
-    target.repoKey,
-  );
-  if (!known) return jsonError(404, "No traffic seen for this repo yet");
-  const gateway = env.RepoGateway.getByName(durableObjectName(target));
+  const gateway = await findRepoGateway(env, target);
+  if (!gateway) return jsonError(404, "No traffic seen for this repo yet");
   return action.run(gateway, target, params);
 }
 

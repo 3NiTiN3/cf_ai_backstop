@@ -1,23 +1,21 @@
 import { z } from "zod";
-import { CHAOS_MODES, type ChaosConfig } from "../gateway/chaos";
+import {
+  CHAOS_MODES,
+  MAX_CHAOS_LATENCY_MS,
+  chaosConfig,
+} from "../gateway/chaos";
 import { REGISTRY_NAME } from "../gateway/registry";
 import { jsonError } from "../gateway/responses";
 import { isAdmin } from "./auth";
 import { readJson } from "./body";
 import { NamespaceQuery, NamespaceSchema } from "./namespace";
 
-const DEFAULT_ERROR_RATE = 0.5;
-const DEFAULT_LATENCY_MS = 1500;
-const MAX_LATENCY_MS = 10_000;
-
 const ChaosRequest = z.strictObject({
   namespace: NamespaceSchema,
   mode: z.enum(CHAOS_MODES),
   errorRate: z.number().min(0).max(1).optional(),
-  latencyMs: z.number().int().min(0).max(MAX_LATENCY_MS).optional(),
+  latencyMs: z.number().int().min(0).max(MAX_CHAOS_LATENCY_MS).optional(),
 });
-
-type ChaosRequest = z.infer<typeof ChaosRequest>;
 
 export async function getChaos(url: URL, env: Env): Promise<Response> {
   const query = NamespaceQuery.safeParse({
@@ -42,19 +40,7 @@ export async function postChaos(request: Request, env: Env): Promise<Response> {
   }
   const config = await env.Registry.getByName(REGISTRY_NAME).setChaos(
     namespace,
-    toConfig(body.data),
+    chaosConfig(body.data.mode, body.data.errorRate, body.data.latencyMs),
   );
   return Response.json({ namespace, ...config });
-}
-
-function toConfig(request: ChaosRequest): ChaosConfig {
-  return {
-    mode: request.mode,
-    errorRate:
-      request.mode === "errors" ? (request.errorRate ?? DEFAULT_ERROR_RATE) : 0,
-    latencyMs:
-      request.mode === "latency"
-        ? (request.latencyMs ?? DEFAULT_LATENCY_MS)
-        : 0,
-  };
 }

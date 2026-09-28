@@ -3,7 +3,11 @@ import type { UpstreamResult } from "./upstream";
 
 export const CHAOS_MODES = ["off", "errors", "latency", "blackout"] as const;
 
-type ChaosMode = (typeof CHAOS_MODES)[number];
+export type ChaosMode = (typeof CHAOS_MODES)[number];
+
+export const MAX_CHAOS_LATENCY_MS = 10_000;
+const DEFAULT_ERROR_RATE = 0.5;
+const DEFAULT_LATENCY_MS = 1500;
 
 export interface ChaosConfig {
   mode: ChaosMode;
@@ -16,6 +20,18 @@ export const CHAOS_OFF: ChaosConfig = {
   errorRate: 0,
   latencyMs: 0,
 };
+
+export function chaosConfig(
+  mode: ChaosMode,
+  errorRate?: number,
+  latencyMs?: number,
+): ChaosConfig {
+  return {
+    mode,
+    errorRate: mode === "errors" ? (errorRate ?? DEFAULT_ERROR_RATE) : 0,
+    latencyMs: mode === "latency" ? (latencyMs ?? DEFAULT_LATENCY_MS) : 0,
+  };
+}
 
 export interface ChaosDeps {
   random: () => number;
