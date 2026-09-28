@@ -8,7 +8,14 @@
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/agents/*", "/gh", "/gh/*", "/demo/gh", "/demo/gh/*"],
+    "run_worker_first": [
+      "/agents/*",
+      "/api/*",
+      "/gh",
+      "/gh/*",
+      "/demo/gh",
+      "/demo/gh/*",
+    ],
   },
   "durable_objects": {
     "bindings": [
@@ -20,6 +27,10 @@
         "class_name": "RepoGateway",
         "name": "RepoGateway",
       },
+      {
+        "class_name": "Registry",
+        "name": "Registry",
+      },
     ],
   },
   "migrations": [
@@ -30,6 +41,10 @@
     {
       "new_sqlite_classes": ["RepoGateway"],
       "tag": "v2",
+    },
+    {
+      "new_sqlite_classes": ["Registry"],
+      "tag": "v3",
     },
   ],
 }

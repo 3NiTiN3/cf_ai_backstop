@@ -28,7 +28,7 @@ describe("conditional revalidation", () => {
       const hit = await get(REPO);
       expect(hit.headers.get("x-backstop-cache")).toBe("HIT");
       expect(upstream.calls).toHaveLength(2);
-      expect(counters()).toEqual({
+      expect(counters()).toMatchObject({
         upstream_calls: 2,
         upstream_avoided: 1,
         revalidated: 1,

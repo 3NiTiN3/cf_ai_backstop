@@ -1,12 +1,17 @@
 import { z } from "zod";
 
 export const COUNTER_NAMES = [
+  "requests",
+  "hits",
+  "coalesced",
   "upstream_calls",
   "upstream_avoided",
   "revalidated",
 ] as const;
 
 export type CounterName = (typeof COUNTER_NAMES)[number];
+
+export type CounterTotals = Record<CounterName, number>;
 
 const CounterRow = z.object({ name: z.string(), value: z.number() });
 
@@ -26,16 +31,20 @@ export class Counters {
     );
   }
 
-  snapshot(): Record<CounterName, number> {
-    const totals = Object.fromEntries(
-      COUNTER_NAMES.map((name) => [name, 0]),
-    ) as Record<CounterName, number>;
+  snapshot(): CounterTotals {
+    const totals = emptyCounters();
     for (const row of this.sql.exec("SELECT name, value FROM counters")) {
       const { name, value } = CounterRow.parse(row);
       if (isCounterName(name)) totals[name] = value;
     }
     return totals;
   }
+}
+
+export function emptyCounters(): CounterTotals {
+  return Object.fromEntries(
+    COUNTER_NAMES.map((name) => [name, 0]),
+  ) as CounterTotals;
 }
 
 function isCounterName(name: string): name is CounterName {
