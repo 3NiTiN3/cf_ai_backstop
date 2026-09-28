@@ -1,16 +1,34 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Chat } from "./ui/chat";
+import { Dashboard } from "./ui/dashboard";
+import { Header } from "./ui/header";
+import type { Namespace } from "./gateway/routes";
 
 export default function App() {
+  const [namespace, setNamespace] = useState<Namespace>("demo");
+
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center h-screen text-kumo-inactive">
-          Loading...
+    <div className="flex flex-col min-h-screen lg:h-screen bg-kumo-elevated">
+      <Header namespace={namespace} onNamespaceChange={setNamespace} />
+      <main className="flex-1 grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_32rem]">
+        <div className="min-w-0 lg:overflow-y-auto">
+          <Dashboard namespace={namespace} />
         </div>
-      }
-    >
-      <Chat />
-    </Suspense>
+        <aside
+          aria-label="Ops chat"
+          className="min-w-0 h-[85svh] lg:h-auto lg:min-h-0 border-t lg:border-t-0 lg:border-l border-kumo-line"
+        >
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-full text-kumo-inactive">
+                Loading...
+              </div>
+            }
+          >
+            <Chat />
+          </Suspense>
+        </aside>
+      </main>
+    </div>
   );
 }

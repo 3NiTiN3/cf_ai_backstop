@@ -3,7 +3,6 @@ import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import type { UIMessage } from "ai";
 import {
-  Badge,
   Button,
   Empty,
   InputArea,
@@ -21,7 +20,6 @@ import {
 } from "@phosphor-icons/react";
 import type { OpsAgent } from "../server";
 import { MessagePart } from "./message-part";
-import { ThemeToggle } from "./theme-toggle";
 
 function ConnectionStatus({ connected }: { connected: boolean }) {
   return (
@@ -42,7 +40,7 @@ export function Chat() {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [showDebug, setShowDebug] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const agent = useAgent<OpsAgent>({
@@ -67,11 +65,12 @@ export function Chat() {
   const isStreaming = status === "streaming" || status === "submitted";
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
-    if (!isStreaming) textareaRef.current?.focus();
+    if (!isStreaming) textareaRef.current?.focus({ preventScroll: true });
   }, [isStreaming]);
 
   const send = useCallback(() => {
@@ -83,47 +82,42 @@ export function Chat() {
   }, [input, isStreaming, sendMessage]);
 
   return (
-    <div className="flex flex-col h-screen bg-kumo-elevated">
-      <header className="px-5 py-4 bg-kumo-base border-b border-kumo-line">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-kumo-default">
-              Backstop
-            </h1>
-            <Badge variant="secondary">
-              <ChatCircleDotsIcon size={12} weight="bold" className="mr-1" />
-              Ops chat
-            </Badge>
-          </div>
-          <div className="flex items-center gap-3">
-            <ConnectionStatus connected={connected} />
-            <div className="flex items-center gap-1.5">
-              <BugIcon size={14} className="text-kumo-inactive" />
-              <Switch
-                checked={showDebug}
-                onCheckedChange={setShowDebug}
-                size="sm"
-                aria-label="Toggle debug mode"
-              />
-            </div>
-            <ThemeToggle />
-            <Button
-              variant="secondary"
-              icon={<TrashIcon size={16} />}
-              onClick={clearHistory}
-            >
-              Clear
-            </Button>
-          </div>
+    <div className="flex flex-col h-full bg-kumo-elevated">
+      <div className="px-4 py-3 bg-kumo-base border-b border-kumo-line flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-kumo-default">
+            Ops chat
+          </h2>
+          <ConnectionStatus connected={connected} />
         </div>
-      </header>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <BugIcon size={14} className="text-kumo-inactive" />
+            <Switch
+              checked={showDebug}
+              onCheckedChange={setShowDebug}
+              size="sm"
+              aria-label="Toggle debug mode"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<TrashIcon size={14} />}
+            onClick={clearHistory}
+          >
+            Clear
+          </Button>
+        </div>
+      </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="px-4 py-5 space-y-5">
           {messages.length === 0 && (
             <Empty
               icon={<ChatCircleDotsIcon size={32} />}
-              title="Start a conversation"
+              title="Ask about the gateway"
+              description="Try asking whether demo/api is healthy, or what just happened."
             />
           )}
 
@@ -152,8 +146,6 @@ export function Chat() {
               </div>
             );
           })}
-
-          <div ref={messagesEndRef} />
         </div>
       </div>
 
@@ -163,7 +155,7 @@ export function Chat() {
             e.preventDefault();
             send();
           }}
-          className="max-w-3xl mx-auto px-5 py-4"
+          className="px-4 py-3"
         >
           <div className="flex items-end gap-3 rounded-xl border border-kumo-line bg-kumo-base p-3 shadow-sm focus-within:ring-2 focus-within:ring-kumo-ring focus-within:border-transparent transition-shadow">
             <InputArea
