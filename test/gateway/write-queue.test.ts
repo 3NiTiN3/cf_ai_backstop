@@ -20,6 +20,8 @@ interface WriteHarness {
   queue: WriteQueue;
   calls: Request[];
   setMode: (mode: GatewayMode) => void;
+  setPaused: (paused: boolean) => void;
+  queuedEvents: () => number;
   respond: (result: UpstreamResult) => void;
   send: (
     path: string,
@@ -38,12 +40,16 @@ function withWrites(run: (harness: WriteHarness) => Promise<void>) {
     const queue = new WriteQueue(state.storage.sql);
     const calls: Request[] = [];
     let mode: GatewayMode = "normal";
+    let paused = false;
+    let queuedEvents = 0;
     let result = created;
     let ids = 0;
     const writes = new WritePath(queue, {
       now: () => 1_000,
       newId: () => `w${++ids}`,
       mode: () => mode,
+      paused: () => paused,
+      onQueued: () => queuedEvents++,
       upstream: async (_namespace, request) => {
         calls.push(request);
         return result;
@@ -54,6 +60,8 @@ function withWrites(run: (harness: WriteHarness) => Promise<void>) {
       queue,
       calls,
       setMode: (next) => (mode = next),
+      setPaused: (next) => (paused = next),
+      queuedEvents: () => queuedEvents,
       respond: (next) => (result = next),
       send: (path, body, headers = {}, method = "POST") =>
         writes.handle(
@@ -97,6 +105,16 @@ describe("WritePath", () => {
         status: "pending",
       });
       expect(queue.hasWaiting()).toBe(true);
+    }));
+
+  it("queues allowed writes while paused even when healthy", () =>
+    withWrites(async ({ send, setPaused, calls, queuedEvents }) => {
+      setPaused(true);
+      const body = await queuedBody(await send(COMMENTS, { body: "hold" }));
+      expect(body.position).toBe(1);
+      expect(calls).toHaveLength(0);
+      expect(queuedEvents()).toBe(1);
+      expect((await send(MERGE, {}, {}, "PUT")).status).toBe(201);
     }));
 
   it("passes client errors through without queueing", () =>

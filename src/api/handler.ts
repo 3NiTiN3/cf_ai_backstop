@@ -3,7 +3,7 @@ import { jsonError } from "../gateway/responses";
 import { bodyTooLarge } from "./body";
 import { getChaos, postChaos } from "./chaos";
 import { NamespaceQuery } from "./namespace";
-import { getRepoHealth } from "./repos";
+import { handleRepoRequest } from "./repos";
 
 const REPOS_PREFIX = "/api/repos/";
 
@@ -29,8 +29,7 @@ function route(request: Request, url: URL, env: Env): Promise<Response> {
   }
   if (pathname.startsWith(REPOS_PREFIX)) {
     const segments = pathname.slice(REPOS_PREFIX.length).split("/");
-    if (segments.length !== 3) return notFound();
-    return method === "GET" ? getRepoHealth(segments, env) : notAllowed();
+    return handleRepoRequest(request, segments, env);
   }
   return notFound();
 }

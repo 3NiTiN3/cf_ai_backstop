@@ -19,6 +19,8 @@ export interface WriteDeps {
   now: () => number;
   newId: () => string;
   mode: () => GatewayMode;
+  paused: () => boolean;
+  onQueued: () => void;
   upstream: (namespace: Namespace, request: Request) => Promise<UpstreamResult>;
   sealToken: (authorization: string) => Promise<SealedText>;
 }
@@ -58,7 +60,9 @@ export class WritePath {
     const existing = this.queue.findByKey(write.idempotencyKey);
     if (existing) return this.accepted(existing);
     // Later writes must not overtake writes that are still waiting.
-    if (this.queue.hasWaiting()) return this.enqueue(write);
+    if (this.deps.paused() || this.queue.hasWaiting()) {
+      return this.enqueue(write);
+    }
     const result = await this.send(write.request, write.route, write.body);
     if (isUnavailable(result.outcome)) return this.enqueue(write);
     return fromUpstream(result, "BYPASS");
@@ -75,6 +79,7 @@ export class WritePath {
       token: authorization ? await this.deps.sealToken(authorization) : null,
       now: this.deps.now(),
     });
+    this.deps.onQueued();
     return this.accepted(stored);
   }
 
