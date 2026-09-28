@@ -78,6 +78,18 @@ export class Registry extends DurableObject<Env> {
     );
   }
 
+  hasRepo(namespace: Namespace, repoKey: string): boolean {
+    return (
+      this.sql
+        .exec(
+          "SELECT 1 FROM repos WHERE namespace = ? AND repo_key = ?",
+          namespace,
+          repoKey,
+        )
+        .toArray().length > 0
+    );
+  }
+
   getChaos(namespace: Namespace): ChaosConfig {
     return this.chaos.get(namespace);
   }

@@ -30,7 +30,9 @@ export function parseGatewayUrl(url: URL): GatewayRoute | null {
   return null;
 }
 
-export function durableObjectName(route: GatewayRoute): string {
+export function durableObjectName(
+  route: Pick<GatewayRoute, "namespace" | "repoKey">,
+): string {
   return `${route.namespace}:${route.repoKey}`;
 }
 
@@ -45,11 +47,13 @@ function repoKeyFor(upstreamPath: string): string {
   if (first !== "repos" || owner === undefined || repo === undefined) {
     return GLOBAL_REPO_KEY;
   }
+  return repoKeyOf(owner, repo) ?? GLOBAL_REPO_KEY;
+}
+
+export function repoKeyOf(owner: string, repo: string): string | null {
   const decodedOwner = safeDecode(owner);
   const decodedRepo = safeDecode(repo);
-  if (!isGitHubName(decodedOwner) || !isGitHubName(decodedRepo)) {
-    return GLOBAL_REPO_KEY;
-  }
+  if (!isGitHubName(decodedOwner) || !isGitHubName(decodedRepo)) return null;
   return `${decodedOwner}/${decodedRepo}`.toLowerCase();
 }
 

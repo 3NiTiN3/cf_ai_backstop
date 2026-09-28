@@ -1,12 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
-import type { Transition } from "./breaker";
+import type { Breaker, Transition } from "./breaker";
 import { BreakerStore } from "./breaker-store";
 import { CacheStore } from "./cache";
 import { CachedChaos, applyChaos } from "./chaos";
 import { Counters, type CounterTotals } from "./counters";
 import { EventLog, type GatewayEvent } from "./events";
-import { GuardedUpstream } from "./guarded-upstream";
-import { HealthWindow } from "./health";
+import { GuardedUpstream, type GatewayMode } from "./guarded-upstream";
+import { HealthWindow, type HealthSnapshot } from "./health";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
 import { MODE_HEADER, fromUpstream } from "./responses";
@@ -26,6 +26,12 @@ export interface RepoStats {
   lastEventAt: number | null;
 }
 
+export interface RepoHealth extends RepoStats {
+  mode: GatewayMode;
+  breaker: Breaker;
+  health: HealthSnapshot;
+}
+
 export class RepoGateway extends DurableObject<Env> {
   private readonly counters = new Counters(this.ctx.storage.sql);
   private readonly events = new EventLog(this.ctx.storage.sql);
@@ -34,9 +40,10 @@ export class RepoGateway extends DurableObject<Env> {
       this.env.Registry.getByName(REGISTRY_NAME).getChaos(namespace),
     () => Date.now(),
   );
+  private readonly health = new HealthWindow(() => Date.now());
   private readonly upstream = new GuardedUpstream(
     new BreakerStore(this.ctx.storage.sql),
-    new HealthWindow(() => Date.now()),
+    this.health,
     {
       now: () => Date.now(),
       fetch: (namespace, request) => this.fetchWithChaos(namespace, request),
@@ -79,6 +86,15 @@ export class RepoGateway extends DurableObject<Env> {
     return {
       counters: this.counters.snapshot(),
       lastEventAt: this.events.lastEventAt(),
+    };
+  }
+
+  getHealth(): RepoHealth {
+    return {
+      ...this.getStats(),
+      mode: this.upstream.mode(),
+      breaker: this.upstream.state(),
+      health: this.health.snapshot(),
     };
   }
 
