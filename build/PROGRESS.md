@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** Phase 0 gate
-- **Last commit:** chore(build): record first deployment (0.6)
+- **Current:** 1.1
+- **Last commit:** chore(build): complete phase 0 (0.gate)
 - **Deployed URL:** https://cf-ai-backstop.gambier-toad-0c.workers.dev
 - **Public repo:** not created yet
 
@@ -21,7 +21,7 @@ None.
 - [x] 0.4 Switch to Workers AI
 - [x] 0.5 Quality tooling
 - [x] 0.6 First deploy
-- [ ] Phase 0 gate
+- [x] Phase 0 gate
 
 ### Phase 1: Read path
 - [ ] 1.1 Routing and repo keys
