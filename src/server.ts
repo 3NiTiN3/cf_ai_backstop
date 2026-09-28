@@ -12,6 +12,7 @@ import { buildSystemPrompt } from "./agent/prompt";
 import { answerAfterTools } from "./agent/steps";
 import { INITIAL_OPS_STATE, readOpsState, type OpsState } from "./agent/state";
 import { createAgentTools } from "./agent/toolset";
+import { requestedNamespace } from "./agent/inputs";
 import { handleApiRequest } from "./api/handler";
 import { handleGatewayRequest } from "./gateway/handler";
 import { jsonError } from "./gateway/responses";
@@ -32,9 +33,10 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
     options?: OnChatMessageOptions,
   ) {
     const state = readOpsState(this.state);
+    const namespace = requestedNamespace(options?.body) ?? state.namespace;
     const result = streamText({
       model: chatModel(this.env.AI, this.sessionAffinity),
-      system: buildSystemPrompt(state),
+      system: buildSystemPrompt({ ...state, namespace }),
       messages: pruneMessages({
         messages: await convertToModelMessages(this.messages),
         toolCalls: "before-last-2-messages",
@@ -42,6 +44,7 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
       }),
       tools: createAgentTools({
         env: this.env,
+        namespace,
         state: () => readOpsState(this.state),
         save: (next) => this.setState(next),
       }),

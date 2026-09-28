@@ -28,7 +28,12 @@ export async function runEvalTurn(
   question: string,
 ): Promise<EvalTurn> {
   const state = INITIAL_OPS_STATE;
-  const tools = createAgentTools({ env, state: () => state, save: () => {} });
+  const tools = createAgentTools({
+    env,
+    namespace: state.namespace,
+    state: () => state,
+    save: () => {},
+  });
   const result = await generateText({
     model: chatModel(env.AI, "eval"),
     system: buildSystemPrompt(state),

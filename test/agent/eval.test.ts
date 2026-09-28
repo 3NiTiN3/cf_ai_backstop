@@ -9,6 +9,7 @@ describe("dryRun", () => {
   it("keeps every tool schema but removes execution and approval", () => {
     const tools = createAgentTools({
       env,
+      namespace: "demo",
       state: () => INITIAL_OPS_STATE,
       save: () => {},
     });

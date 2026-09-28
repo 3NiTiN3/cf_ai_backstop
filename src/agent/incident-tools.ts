@@ -1,5 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
+import type { Namespace } from "../gateway/routes";
 import { listIncidents } from "../gateway/incident-query";
 import { NamespaceInput, RepoInput, notARepo, parseRepo } from "./inputs";
 import type { OpsState } from "./state";
@@ -9,6 +10,7 @@ const INCIDENT_LIMIT = 10;
 
 export interface IncidentToolContext {
   env: Env;
+  namespace: Namespace;
   state: () => OpsState;
   save: (state: OpsState) => void;
 }
@@ -25,7 +27,7 @@ export function createIncidentTools(context: IncidentToolContext) {
         const state = context.state();
         const repoKey = repo === undefined ? null : parseRepo(repo);
         if (repo !== undefined && repoKey === null) return notARepo(repo);
-        const resolved = namespace ?? state.namespace;
+        const resolved = namespace ?? context.namespace;
         const incidents = await listIncidents(
           context.env,
           resolved,

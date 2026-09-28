@@ -18,6 +18,7 @@ import {
   StopIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import type { Namespace } from "../gateway/routes";
 import type { OpsAgent } from "../server";
 import { MessagePart } from "./message-part";
 
@@ -36,7 +37,7 @@ function ConnectionStatus({ connected }: { connected: boolean }) {
   );
 }
 
-export function Chat() {
+export function Chat({ namespace }: { namespace: Namespace }) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [showDebug, setShowDebug] = useState(false);
@@ -77,9 +78,12 @@ export function Chat() {
     const text = input.trim();
     if (!text || isStreaming) return;
     setInput("");
-    sendMessage({ role: "user", parts: [{ type: "text", text }] });
+    sendMessage(
+      { role: "user", parts: [{ type: "text", text }] },
+      { body: { namespace } },
+    );
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-  }, [input, isStreaming, sendMessage]);
+  }, [input, isStreaming, namespace, sendMessage]);
 
   return (
     <div className="flex flex-col h-full bg-kumo-elevated">

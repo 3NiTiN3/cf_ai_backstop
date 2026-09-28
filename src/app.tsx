@@ -25,7 +25,7 @@ export default function App() {
               </div>
             }
           >
-            <Chat />
+            <Chat namespace={namespace} />
           </Suspense>
         </aside>
       </main>

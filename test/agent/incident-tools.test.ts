@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createIncidentTools } from "../../src/agent/incident-tools";
 import { INITIAL_OPS_STATE, type OpsState } from "../../src/agent/state";
 import { IncidentLog } from "../../src/gateway/incidents";
+import type { Namespace } from "../../src/gateway/routes";
 import { REGISTRY_NAME } from "../../src/gateway/registry";
 
 const OPTIONS = { toolCallId: "call-1", messages: [] };
@@ -27,10 +28,11 @@ async function seedIncident(repo: string): Promise<void> {
   });
 }
 
-function harness() {
+function harness(namespace: Namespace = "demo") {
   let state: OpsState = { ...INITIAL_OPS_STATE, watchedRepos: ["demo/web"] };
   const { listIncidents } = createIncidentTools({
     env,
+    namespace,
     state: () => state,
     save: (next) => (state = next),
   });
@@ -79,5 +81,13 @@ describe("listIncidents tool", () => {
     expect(await run({ repo: "nobody/nothing" })).toEqual({
       error: "No traffic seen for demo/nobody/nothing yet",
     });
+  });
+
+  it("defaults to the namespace chosen for the chat", async () => {
+    const { run } = harness("live");
+    expect(await run({ repo: "nobody/nothing" })).toEqual({
+      error: "No traffic seen for live/nobody/nothing yet",
+    });
+    expect(await run({})).toMatchObject({ namespace: "live" });
   });
 });
