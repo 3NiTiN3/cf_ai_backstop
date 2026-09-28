@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 0.4
-- **Last commit:** refactor(agent): strip starter examples and rename to OpsAgent (0.3)
+- **Current:** 0.5
+- **Last commit:** feat(ai): use Workers AI Llama 3.3 for chat (0.4)
 - **Deployed URL:** not deployed yet
 - **Public repo:** not created yet
 
@@ -18,7 +18,7 @@ None.
 - [x] 0.1 Toolchain check
 - [x] 0.2 Scaffold from the agents starter
 - [x] 0.3 Rename and strip examples
-- [ ] 0.4 Switch to Workers AI
+- [x] 0.4 Switch to Workers AI
 - [ ] 0.5 Quality tooling
 - [ ] 0.6 First deploy
 - [ ] Phase 0 gate

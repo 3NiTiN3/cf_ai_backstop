@@ -45,3 +45,8 @@ Why: The ops agent gets its own tools in phase 4 and Backstop serves MCP rather 
 Context: The starter pins wrangler 4.113 with workerd 2026-07-21, which predates the compatibility date the plan asks for (today).
 Decision: Bumped `wrangler` to 4.143 and `@cloudflare/vite-plugin` to 1.62, and updated the npm `allowScripts` pin for the new workerd.
 Why: Local dev then runs the same compatibility date that deploys. No new dependencies.
+
+## 2026-09-28  Task 0.4  Simulated streaming for Llama 3.3
+Context: With `@cf/meta/llama-3.3-70b-instruct-fp8-fast` on the binding, each stream chunk carries both `response` and `choices[].delta`. workers-ai-provider (3.3.1 and 4.0.0) emits both, so every token and every tool argument fragment appears twice. The upstream fix, cloudflare/ai#663, is not merged. The starter already used Workers AI, so there was no OpenAI code to remove.
+Decision: Wrap the model with the AI SDK's `simulateStreamingMiddleware`. The model is called without streaming and the result is replayed as a stream to the chat UI.
+Why: The non-streaming path is correct for both text and tool calls, which phase 4 depends on. It is one wrapper in `src/agent/model.ts` that can be removed once the provider is fixed. Cost: replies appear at once instead of token by token.

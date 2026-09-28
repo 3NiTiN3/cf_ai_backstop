@@ -1,19 +1,15 @@
-import { createWorkersAI } from "workers-ai-provider";
 import { routeAgentRequest } from "agents";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import { convertToModelMessages, pruneMessages, streamText } from "ai";
+import { chatModel } from "./agent/model";
 
 export class OpsAgent extends AIChatAgent<Env> {
   maxPersistedMessages = 100;
   chatRecovery = true;
 
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
-    const workersai = createWorkersAI({ binding: this.env.AI });
-
     const result = streamText({
-      model: workersai("@cf/moonshotai/kimi-k2.7-code", {
-        sessionAffinity: this.sessionAffinity
-      }),
+      model: chatModel(this.env.AI, this.sessionAffinity),
       system: "You are a helpful assistant.",
       messages: pruneMessages({
         messages: await convertToModelMessages(this.messages),
