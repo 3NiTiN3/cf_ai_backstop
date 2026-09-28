@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 1.1
-- **Last commit:** chore(build): complete phase 0 (0.gate)
+- **Current:** 1.2
+- **Last commit:** feat(gateway): route GitHub API paths to per-repo durable objects (1.1)
 - **Deployed URL:** https://cf-ai-backstop.gambier-toad-0c.workers.dev
 - **Public repo:** not created yet
 
@@ -24,7 +24,7 @@ None.
 - [x] Phase 0 gate
 
 ### Phase 1: Read path
-- [ ] 1.1 Routing and repo keys
+- [x] 1.1 Routing and repo keys
 - [ ] 1.2 Mock GitHub
 - [ ] 1.3 Upstream client
 - [ ] 1.4 Cache in RepoGateway

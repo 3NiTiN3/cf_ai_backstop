@@ -60,3 +60,8 @@ Why: The docs win over the plan's package name. One linter and one formatter, as
 Context: The plan's smoke test expects a 200 for `/` from the worker's fetch handler. `/` is served by static assets built by Vite and never reaches the worker, so the handler correctly returns 404 there.
 Decision: The smoke test checks that an unknown path returns 404 and that a WebSocket upgrade to `/agents/ops-agent/<name>` reaches OpsAgent (101).
 Why: It tests what the worker actually owns, including the Durable Object binding and agent routing.
+
+## 2026-09-29  Task 1.1  Gateway routing details
+Context: The plan does not say how to treat malformed repo segments or how the worker hands a request to the Durable Object.
+Decision: Owner and repo are percent-decoded, checked against GitHub's name characters and lowercased for the key. Anything that fails the check (encoded slashes, `..`, bad escapes) goes to `_global`, and the upstream path is forwarded unchanged so GitHub decides. The worker calls `RepoGateway.handle(request, route)` over RPC. Gateway paths are added to `run_worker_first` so the SPA fallback never answers them.
+Why: Keeps one DO per real repo, never lets a crafted path pick another repo's cache, and avoids re-parsing inside the DO.

@@ -8,7 +8,7 @@
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/agents/*"],
+    "run_worker_first": ["/agents/*", "/gh", "/gh/*", "/demo/gh", "/demo/gh/*"],
   },
   "durable_objects": {
     "bindings": [
@@ -16,12 +16,20 @@
         "class_name": "OpsAgent",
         "name": "OpsAgent",
       },
+      {
+        "class_name": "RepoGateway",
+        "name": "RepoGateway",
+      },
     ],
   },
   "migrations": [
     {
       "new_sqlite_classes": ["OpsAgent"],
       "tag": "v1",
+    },
+    {
+      "new_sqlite_classes": ["RepoGateway"],
+      "tag": "v2",
     },
   ],
 }

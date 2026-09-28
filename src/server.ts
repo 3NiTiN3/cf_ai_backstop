@@ -2,6 +2,10 @@ import { routeAgentRequest } from "agents";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import { convertToModelMessages, pruneMessages, streamText } from "ai";
 import { chatModel } from "./agent/model";
+import { handleGatewayRequest } from "./gateway/handler";
+import { jsonError } from "./gateway/responses";
+
+export { RepoGateway } from "./gateway/repo-gateway";
 
 export class OpsAgent extends AIChatAgent<Env> {
   override maxPersistedMessages = 100;
@@ -29,8 +33,9 @@ export class OpsAgent extends AIChatAgent<Env> {
 export default {
   async fetch(request: Request, env: Env) {
     return (
-      (await routeAgentRequest(request, env)) ||
-      new Response("Not found", { status: 404 })
+      (await handleGatewayRequest(request, env)) ??
+      (await routeAgentRequest(request, env)) ??
+      jsonError(404, "Not Found")
     );
   },
 } satisfies ExportedHandler<Env>;
