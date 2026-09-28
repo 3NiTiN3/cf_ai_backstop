@@ -118,7 +118,13 @@ export function Chat({ namespace }: { namespace: Namespace }) {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div
+        ref={scrollRef}
+        role="log"
+        aria-label="Chat messages"
+        tabIndex={0}
+        className="flex-1 overflow-y-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-ring"
+      >
         <div className="px-4 py-5 space-y-5">
           {messages.length === 0 && (
             <Empty
@@ -136,7 +142,10 @@ export function Chat({ namespace }: { namespace: Namespace }) {
             return (
               <div key={message.id} className="space-y-2">
                 {showDebug && (
-                  <pre className="text-[11px] text-kumo-subtle bg-kumo-control rounded-lg p-3 overflow-auto max-h-64">
+                  <pre
+                    tabIndex={0}
+                    className="text-[11px] text-kumo-subtle bg-kumo-control rounded-lg p-3 overflow-auto max-h-64"
+                  >
                     {JSON.stringify(message, null, 2)}
                   </pre>
                 )}

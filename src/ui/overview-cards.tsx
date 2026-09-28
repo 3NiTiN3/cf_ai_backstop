@@ -13,7 +13,11 @@ export function OverviewCards({ data, error }: Polled<OverviewData>) {
       </h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
         {overviewStats(data).map((stat) => (
-          <StatCard key={stat.label} {...stat} />
+          <StatCard
+            key={stat.label}
+            {...stat}
+            detail={stat.detail ?? (error ? "Not available" : null)}
+          />
         ))}
       </div>
       {error && (

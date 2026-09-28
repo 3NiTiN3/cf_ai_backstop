@@ -39,6 +39,7 @@ export function Dashboard({ namespace }: { namespace: Namespace }) {
       <RepoPanel
         namespace={namespace}
         rows={rows}
+        error={overview.error}
         selected={repoKey}
         onSelect={setSelected}
       />

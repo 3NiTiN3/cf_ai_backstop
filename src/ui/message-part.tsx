@@ -21,7 +21,10 @@ function ReasoningPart({ text, done }: { text: string; done: boolean }) {
           )}
           <CaretDownIcon size={14} className="ml-auto text-kumo-inactive" />
         </summary>
-        <pre className="mt-2 px-3 py-2 rounded-lg bg-kumo-control text-xs text-kumo-default whitespace-pre-wrap overflow-auto max-h-64">
+        <pre
+          tabIndex={0}
+          className="mt-2 px-3 py-2 rounded-lg bg-kumo-control text-xs text-kumo-default whitespace-pre-wrap overflow-auto max-h-64"
+        >
           {text}
         </pre>
       </details>

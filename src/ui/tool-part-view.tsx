@@ -15,7 +15,10 @@ function ToolIO({ label, value }: { label: string; value: unknown }) {
       <Text size="xs" variant="secondary" bold>
         {label}
       </Text>
-      <pre className="mt-0.5 font-mono text-xs text-kumo-subtle whitespace-pre-wrap overflow-auto max-h-64">
+      <pre
+        tabIndex={0}
+        className="mt-0.5 font-mono text-xs text-kumo-subtle whitespace-pre-wrap overflow-auto max-h-64"
+      >
         {text}
       </pre>
     </div>
