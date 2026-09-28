@@ -1,8 +1,8 @@
 {
-  "name": "agent-starter",
+  "name": "cf-ai-backstop",
   "version": "1.0.0",
   "private": true,
-  "description": "Starter template for building AI chat agents on Cloudflare",
+  "description": "Resilience gateway between AI coding agents and the GitHub API",
   "keywords": [
     "agents",
     "ai",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^8.0.2",
-    "@cloudflare/vite-plugin": "^1.46.0",
+    "@cloudflare/vite-plugin": "^1.62.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^26.0.1",
@@ -46,13 +46,12 @@
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3",
     "vite": "^8.1.0",
-    "wrangler": "^4.113.0"
+    "wrangler": "^4.143.0"
   },
   "allowScripts": {
     "core-js-pure@3.49.0": true,
     "esbuild@0.28.1": true,
-    "workerd@1.20260721.1": true,
-    "sharp@0.34.5": true,
+    "workerd@1.20260926.1": true,
     "fsevents@2.3.3": true
   }
 }

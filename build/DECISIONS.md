@@ -35,3 +35,13 @@ Why: Generated files drift from their source. Regenerating keeps types matched t
 Context: create-cloudflare rejects `.scaffold-tmp` because project names must be lowercase letters, numbers and dashes. It also stops at an interactive AGENTS.md prompt after copying files.
 Decision: Scaffold into `scaffold-tmp`, move the files, delete the folder and run `npm install` ourselves. The starter README and its banner image were dropped since we keep our README.
 Why: Same result as the plan's command with the current CLI.
+
+## 2026-09-28  Task 0.3  What was stripped from the starter
+Context: The starter ships demo tools, scheduling, an MCP client panel, image attachments and CI for the starter repo.
+Decision: Removed the weather, timezone, calculator and scheduling tools, the MCP client panel and its OAuth route, image attachments, the scheduled-task toasts, the suggestion prompts and `.github/` workflows. Kept the chat, tool call rendering (including approvals, needed for destructive tools later), theme toggle and debug view, split into one component per file under `src/ui/`.
+Why: The ops agent gets its own tools in phase 4 and Backstop serves MCP rather than consuming it (phase 7). Smaller files follow the code rules.
+
+## 2026-09-28  Task 0.3  Newer wrangler for today's compatibility date
+Context: The starter pins wrangler 4.113 with workerd 2026-07-21, which predates the compatibility date the plan asks for (today).
+Decision: Bumped `wrangler` to 4.143 and `@cloudflare/vite-plugin` to 1.62, and updated the npm `allowScripts` pin for the new workerd.
+Why: Local dev then runs the same compatibility date that deploys. No new dependencies.
