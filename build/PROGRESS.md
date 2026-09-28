@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 1.2
-- **Last commit:** feat(gateway): route GitHub API paths to per-repo durable objects (1.1)
+- **Current:** 1.3
+- **Last commit:** feat(demo): add deterministic mock GitHub upstream (1.2)
 - **Deployed URL:** https://cf-ai-backstop.gambier-toad-0c.workers.dev
 - **Public repo:** not created yet
 
@@ -25,7 +25,7 @@ None.
 
 ### Phase 1: Read path
 - [x] 1.1 Routing and repo keys
-- [ ] 1.2 Mock GitHub
+- [x] 1.2 Mock GitHub
 - [ ] 1.3 Upstream client
 - [ ] 1.4 Cache in RepoGateway
 - [ ] 1.5 Conditional revalidation

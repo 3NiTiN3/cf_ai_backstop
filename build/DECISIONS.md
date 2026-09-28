@@ -65,3 +65,8 @@ Why: It tests what the worker actually owns, including the Durable Object bindin
 Context: The plan does not say how to treat malformed repo segments or how the worker hands a request to the Durable Object.
 Decision: Owner and repo are percent-decoded, checked against GitHub's name characters and lowercased for the key. Anything that fails the check (encoded slashes, `..`, bad escapes) goes to `_global`, and the upstream path is forwarded unchanged so GitHub decides. The worker calls `RepoGateway.handle(request, route)` over RPC. Gateway paths are added to `run_worker_first` so the SPA fallback never answers them.
 Why: Keeps one DO per real repo, never lets a crafted path pick another repo's cache, and avoids re-parsing inside the DO.
+
+## 2026-09-29  Task 1.2  Stateless mock GitHub
+Context: The mock must not leak state between tests, yet POSTs should return created objects.
+Decision: The mock stores nothing. Reads are built from fixed fixtures, POSTs validate input with zod and return a created object whose id is derived from the input. Latency is injectable (`latencyMs`) so tests run without delay.
+Why: No mutable state at all is simpler than per-isolate storage and makes every read deterministic, which keeps ETags stable for the cache tests.
