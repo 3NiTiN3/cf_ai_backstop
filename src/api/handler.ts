@@ -2,6 +2,7 @@ import { REGISTRY_NAME } from "../gateway/registry";
 import { jsonError } from "../gateway/responses";
 import { bodyTooLarge } from "./body";
 import { getChaos, postChaos } from "./chaos";
+import { postDevEval } from "./dev-eval";
 import { getIncidents } from "./incidents";
 import { NamespaceQuery } from "./namespace";
 import { handleRepoRequest } from "./repos";
@@ -28,6 +29,7 @@ function route(request: Request, url: URL, env: Env): Promise<Response> {
     if (method === "POST") return postChaos(request, env);
     return notAllowed();
   }
+  if (pathname === "/api/dev/eval") return postDevEval(request, env);
   if (pathname === "/api/incidents") {
     return method === "GET" ? getIncidents(url, env) : notAllowed();
   }

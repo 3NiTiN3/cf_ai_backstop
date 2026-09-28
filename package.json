@@ -14,12 +14,13 @@
     "dev": "vite dev",
     "start": "vite dev",
     "deploy": "vite build && wrangler deploy",
-    "types": "wrangler types env.d.ts",
+    "types": "wrangler types env.d.ts --strict-vars=false",
     "typecheck": "npm run types && tsc && tsc -p test",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "evals": "node scripts/run-evals.ts"
   },
   "dependencies": {
     "@cloudflare/ai-chat": "^0.9.3",

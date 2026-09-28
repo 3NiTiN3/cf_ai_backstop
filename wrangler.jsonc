@@ -5,6 +5,7 @@
   "compatibility_date": "2026-09-28",
   "compatibility_flags": ["nodejs_compat"],
   "ai": { "binding": "AI", "remote": true },
+  "vars": { "ENVIRONMENT": "production" },
   "secrets": { "required": ["ADMIN_TOKEN", "QUEUE_ENCRYPTION_KEY"] },
   "assets": {
     "directory": "./public",

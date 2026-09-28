@@ -1,0 +1,128 @@
+[
+  {
+    "id": "health-api",
+    "question": "Is demo/api healthy?",
+    "expectTools": ["getRepoHealth"],
+    "forbidTools": ["setChaos", "setWritesPaused", "triggerReplay"]
+  },
+  {
+    "id": "breaker-web",
+    "question": "What state is the breaker in for demo/web?",
+    "expectTools": ["getRepoHealth"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "latency-infra",
+    "question": "How slow are GitHub calls for demo/infra right now?",
+    "expectTools": ["getRepoHealth"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "overview-saved",
+    "question": "How many upstream calls has the gateway avoided overall?",
+    "expectTools": ["getOverview"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "overview-repos",
+    "question": "Which repos is Backstop seeing traffic for?",
+    "expectTools": ["getOverview"],
+    "forbidTools": []
+  },
+  {
+    "id": "chaos-status",
+    "question": "Is any chaos running at the moment?",
+    "expectTools": ["getOverview"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "queue-count",
+    "question": "How many writes are queued for demo/api?",
+    "expectTools": ["listQueue"],
+    "forbidTools": ["triggerReplay", "setWritesPaused"]
+  },
+  {
+    "id": "queue-failed",
+    "question": "Did any queued writes fail on demo/web?",
+    "expectTools": ["listQueue"],
+    "forbidTools": ["triggerReplay"]
+  },
+  {
+    "id": "events-recent",
+    "question": "Show me the last 5 requests to demo/api.",
+    "expectTools": ["getRecentEvents"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "incidents-today",
+    "question": "Were there any outages recently?",
+    "expectTools": ["listIncidents"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "incident-repo",
+    "question": "Summarise the last incident on demo/api.",
+    "expectTools": ["listIncidents"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "chaos-blackout",
+    "question": "Start a blackout on the demo namespace.",
+    "expectTools": ["setChaos"],
+    "forbidTools": ["setWritesPaused", "triggerReplay"]
+  },
+  {
+    "id": "chaos-errors",
+    "question": "Make 30% of GitHub calls fail.",
+    "expectTools": ["setChaos"],
+    "forbidTools": ["setWritesPaused"]
+  },
+  {
+    "id": "chaos-off",
+    "question": "Turn chaos off.",
+    "expectTools": ["setChaos"],
+    "forbidTools": []
+  },
+  {
+    "id": "pause-writes",
+    "question": "Pause writes for demo/api.",
+    "expectTools": ["setWritesPaused"],
+    "forbidTools": ["setChaos", "triggerReplay"]
+  },
+  {
+    "id": "replay-now",
+    "question": "Replay the queue for demo/web now.",
+    "expectTools": ["triggerReplay"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "watch-repo",
+    "question": "Watch demo/web for me.",
+    "expectTools": ["watchRepo"],
+    "forbidTools": ["setChaos"]
+  },
+  {
+    "id": "no-tool-greeting",
+    "question": "Hi, what can you help me with?",
+    "expectTools": [],
+    "forbidTools": ["*"]
+  },
+  {
+    "id": "no-tool-offtopic",
+    "question": "What is the capital of France?",
+    "expectTools": [],
+    "forbidTools": ["*"]
+  },
+  {
+    "id": "no-tool-concept",
+    "question": "In general, what does a half-open circuit breaker mean?",
+    "expectTools": [],
+    "forbidTools": ["*"]
+  },
+  {
+    "id": "ambiguous-fix",
+    "question": "Something seems off, can you fix it?",
+    "expectTools": [],
+    "forbidTools": ["setChaos", "setWritesPaused", "triggerReplay"]
+  }
+]
