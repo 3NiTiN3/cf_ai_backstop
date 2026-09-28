@@ -1,15 +1,17 @@
 import { routeAgentRequest } from "agents";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
+import type { Connection } from "agents";
 import {
   convertToModelMessages,
   pruneMessages,
   stepCountIs,
   streamText,
 } from "ai";
+import { createMemoryTools } from "./agent/memory-tools";
 import { chatModel } from "./agent/model";
 import { buildSystemPrompt } from "./agent/prompt";
 import { answerAfterTools } from "./agent/steps";
-import { INITIAL_OPS_STATE, type OpsState } from "./agent/state";
+import { INITIAL_OPS_STATE, readOpsState, type OpsState } from "./agent/state";
 import { createOpsTools } from "./agent/tools";
 import { handleApiRequest } from "./api/handler";
 import { handleGatewayRequest } from "./gateway/handler";
@@ -30,24 +32,36 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
     _onFinish: unknown,
     options?: OnChatMessageOptions,
   ) {
+    const state = readOpsState(this.state);
     const result = streamText({
       model: chatModel(this.env.AI, this.sessionAffinity),
-      system: buildSystemPrompt(this.state),
+      system: buildSystemPrompt(state),
       messages: pruneMessages({
         messages: await convertToModelMessages(this.messages),
         toolCalls: "before-last-2-messages",
         reasoning: "before-last-message",
       }),
-      tools: createOpsTools({
-        env: this.env,
-        namespace: () => this.state.namespace,
-      }),
+      tools: {
+        ...createOpsTools({ env: this.env, namespace: () => state.namespace }),
+        ...createMemoryTools({
+          state: () => readOpsState(this.state),
+          save: (next) => this.setState(next),
+        }),
+      },
       prepareStep: answerAfterTools,
       stopWhen: stepCountIs(MAX_STEPS),
       abortSignal: options?.abortSignal,
     });
 
     return result.toUIMessageStreamResponse();
+  }
+
+  // Browsers can push state over the socket; only the agent's own tools may change it.
+  override validateStateChange(
+    _next: OpsState,
+    source: Connection | "server",
+  ): void {
+    if (source !== "server") throw new Error("State is read-only for clients");
   }
 }
 

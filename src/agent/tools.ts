@@ -10,7 +10,8 @@ import { findRepoGateway } from "../gateway/lookup";
 import { REGISTRY_NAME } from "../gateway/registry";
 import type { RepoGateway } from "../gateway/repo-gateway";
 import type { ReplayTarget } from "../gateway/replay-trigger";
-import { repoKeyOf, type Namespace } from "../gateway/routes";
+import type { Namespace } from "../gateway/routes";
+import { RepoInput, notARepo, parseRepo } from "./repo-input";
 import {
   MAX_ROWS,
   chaosView,
@@ -38,10 +39,6 @@ const LIVE_REFUSAL = {
 const NamespaceInput = NamespaceSchema.optional().describe(
   "live or demo. Leave it out to use the current namespace.",
 );
-
-const RepoInput = z
-  .string()
-  .describe("Repository as owner/name, for example demo/api.");
 
 const RepoRequest = z.object({ namespace: NamespaceInput, repo: RepoInput });
 
@@ -178,19 +175,13 @@ async function withRepo<T>(
   run: (gateway: Gateway, target: ReplayTarget) => Promise<T>,
 ): Promise<T | { error: string }> {
   const repoKey = parseRepo(repo);
-  if (repoKey === null) return { error: `${repo} is not an owner/name repo` };
+  if (repoKey === null) return notARepo(repo);
   const target = { namespace, repoKey };
   const gateway = await findRepoGateway(env, target);
   if (!gateway) {
     return { error: `No traffic seen for ${namespace}/${repoKey} yet` };
   }
   return run(gateway, target);
-}
-
-function parseRepo(repo: string): string | null {
-  const [owner, name, ...rest] = repo.trim().split("/");
-  if (owner === undefined || name === undefined || rest.length > 0) return null;
-  return repoKeyOf(owner, name);
 }
 
 function repoLabel({ namespace, repoKey }: ReplayTarget) {

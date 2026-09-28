@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "../../src/agent/prompt";
-import { INITIAL_OPS_STATE } from "../../src/agent/state";
+import { INITIAL_OPS_STATE, type OpsState } from "../../src/agent/state";
 
-const watching = {
-  namespace: "live" as const,
+const watching: OpsState = {
+  namespace: "live",
   watchedRepos: ["acme/api", "acme/web"],
+  lastSeenIncidentAt: null,
 };
 
 function wordCount(text: string): number {
