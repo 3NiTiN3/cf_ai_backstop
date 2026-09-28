@@ -110,6 +110,10 @@ export class WriteSide {
     return { paused, replay: await this.trigger.start(target, "resumed") };
   }
 
+  queueDepth(): number {
+    return this.queue.waitingCount();
+  }
+
   listQueue(): QueueListing {
     return this.control.list();
   }

@@ -5,6 +5,7 @@ import { replayProgress } from "../gateway/incidents";
 import type { QueueListing } from "../gateway/queue-control";
 import type { Overview } from "../gateway/registry";
 import type { RepoHealth } from "../gateway/repo-gateway";
+import { percent } from "../shared/percent";
 
 export const MAX_ROWS = 20;
 
@@ -15,19 +16,24 @@ export function overviewView(overview: Overview, chaos: ChaosConfig) {
     chaos: chaosView(chaos),
     totals: {
       requests: totals.requests,
+      requestsLastMinute: totals.requestsPerMinute,
       cacheHits: totals.hits,
+      cacheHitPercent: percent(totals.cacheHitRatio),
       coalesced: totals.coalesced,
       upstreamCalls: totals.upstream_calls,
       upstreamAvoided: totals.upstream_avoided,
       upstreamAvoidedPercent: percent(totals.avoidedRatio),
+      queuedWrites: totals.queueDepth,
     },
     repoCount: overview.repos.length,
+    reposDegraded: overview.reposDegraded,
     repos: overview.repos.slice(0, MAX_ROWS).map((repo) => ({
       repo: repo.repoKey,
       breaker: repo.breaker,
       requests: repo.requests,
       cacheHits: repo.hits,
       upstreamCalls: repo.upstream_calls,
+      queuedWrites: repo.queueDepth,
       lastEventAt: isoOrNull(repo.lastEventAt),
     })),
   };
@@ -144,10 +150,6 @@ export function incidentView(
 
 export function incidentTime(incident: RepoIncident): number {
   return incident.endedAt ?? incident.startedAt;
-}
-
-function percent(ratio: number): number {
-  return Math.round(ratio * 1000) / 10;
 }
 
 function isSuccess(event: GatewayEvent): boolean {

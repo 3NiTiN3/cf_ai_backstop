@@ -5,6 +5,7 @@ import { BREAKER_STATES, type BreakerState } from "./breaker";
 import type { ChaosConfig } from "./chaos";
 import { ChaosStore, type ChaosEvent } from "./chaos-store";
 import { COUNTER_NAMES, emptyCounters, type CounterTotals } from "./counters";
+import { countLastMinute, type RateBuckets } from "./request-rate";
 import type { Namespace } from "./routes";
 
 export const REGISTRY_NAME = "global";
@@ -15,6 +16,8 @@ export interface RepoSnapshot {
   counters: CounterTotals;
   lastEventAt: number | null;
   breaker: BreakerState;
+  recentRequests: RateBuckets;
+  queueDepth: number;
 }
 
 export interface RepoSummary extends CounterTotals {
@@ -22,11 +25,21 @@ export interface RepoSummary extends CounterTotals {
   breaker: BreakerState;
   lastEventAt: number | null;
   reportedAt: number;
+  requestsPerMinute: number;
+  queueDepth: number;
+}
+
+export interface OverviewTotals extends CounterTotals {
+  avoidedRatio: number;
+  cacheHitRatio: number;
+  requestsPerMinute: number;
+  queueDepth: number;
 }
 
 export interface Overview {
   namespace: Namespace;
-  totals: CounterTotals & { avoidedRatio: number };
+  totals: OverviewTotals;
+  reposDegraded: number;
   repos: RepoSummary[];
 }
 
@@ -40,7 +53,11 @@ const RepoRow = z.object({
   last_event_at: z.number().nullable(),
   reported_at: z.number(),
   breaker: z.enum(BREAKER_STATES),
+  recent_requests: z.string(),
+  queue_depth: z.number(),
 });
+
+const StoredBuckets = z.array(z.tuple([z.number(), z.number()]));
 
 export class Registry extends DurableObject<Env> {
   private readonly sql = this.ctx.storage.sql;
@@ -62,19 +79,34 @@ export class Registry extends DurableObject<Env> {
       "breaker",
       "TEXT NOT NULL DEFAULT 'closed'",
     );
+    addColumnIfMissing(
+      this.sql,
+      "repos",
+      "recent_requests",
+      "TEXT NOT NULL DEFAULT '[]'",
+    );
+    addColumnIfMissing(
+      this.sql,
+      "repos",
+      "queue_depth",
+      "INT NOT NULL DEFAULT 0",
+    );
   }
 
   report(snapshot: RepoSnapshot): void {
     this.sql.exec(
       `INSERT OR REPLACE INTO repos
-        (namespace, repo_key, counters, last_event_at, reported_at, breaker)
-        VALUES (?, ?, ?, ?, ?, ?)`,
+        (namespace, repo_key, counters, last_event_at, reported_at, breaker,
+          recent_requests, queue_depth)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       snapshot.namespace,
       snapshot.repoKey,
       JSON.stringify(snapshot.counters),
       snapshot.lastEventAt,
       Date.now(),
       snapshot.breaker,
+      JSON.stringify(snapshot.recentRequests),
+      snapshot.queueDepth,
     );
   }
 
@@ -104,17 +136,24 @@ export class Registry extends DurableObject<Env> {
   }
 
   overview(namespace: Namespace): Overview {
+    const now = Date.now();
     const repos = this.sql
       .exec("SELECT * FROM repos WHERE namespace = ?", namespace)
       .toArray()
-      .map((row) => toSummary(RepoRow.parse(row)))
+      .map((row) => toSummary(RepoRow.parse(row), now))
       .sort((a, b) => b.requests - a.requests);
-    return { namespace, totals: totalsOf(repos), repos };
+    return {
+      namespace,
+      totals: totalsOf(repos),
+      reposDegraded: repos.filter((repo) => repo.breaker !== "closed").length,
+      repos,
+    };
   }
 }
 
-function toSummary(row: z.infer<typeof RepoRow>): RepoSummary {
+function toSummary(row: z.infer<typeof RepoRow>, now: number): RepoSummary {
   const counters = StoredCounters.parse(JSON.parse(row.counters));
+  const buckets = StoredBuckets.parse(JSON.parse(row.recent_requests));
   return {
     ...emptyCounters(),
     ...counters,
@@ -122,18 +161,32 @@ function toSummary(row: z.infer<typeof RepoRow>): RepoSummary {
     breaker: row.breaker,
     lastEventAt: row.last_event_at,
     reportedAt: row.reported_at,
+    requestsPerMinute: countLastMinute(buckets, now),
+    queueDepth: row.queue_depth,
   };
 }
 
-function totalsOf(repos: RepoSummary[]): Overview["totals"] {
+function totalsOf(repos: RepoSummary[]): OverviewTotals {
   const totals = emptyCounters();
+  let requestsPerMinute = 0;
+  let queueDepth = 0;
   for (const repo of repos) {
     for (const name of COUNTER_NAMES) totals[name] += repo[name];
+    requestsPerMinute += repo.requestsPerMinute;
+    queueDepth += repo.queueDepth;
   }
-  const upstreamTotal = totals.upstream_avoided + totals.upstream_calls;
   return {
     ...totals,
-    avoidedRatio:
-      upstreamTotal === 0 ? 0 : totals.upstream_avoided / upstreamTotal,
+    avoidedRatio: ratio(
+      totals.upstream_avoided,
+      totals.upstream_avoided + totals.upstream_calls,
+    ),
+    cacheHitRatio: ratio(totals.hits, totals.requests),
+    requestsPerMinute,
+    queueDepth,
   };
+}
+
+function ratio(part: number, whole: number): number {
+  return whole === 0 ? 0 : part / whole;
 }

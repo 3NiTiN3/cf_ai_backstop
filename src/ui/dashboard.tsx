@@ -1,6 +1,7 @@
 import { Banner } from "@cloudflare/kumo";
 import { KeyIcon } from "@phosphor-icons/react";
 import type { Namespace } from "../gateway/routes";
+import { OverviewCards } from "./overview-cards";
 
 export function Dashboard({ namespace }: { namespace: Namespace }) {
   return (
@@ -16,6 +17,7 @@ export function Dashboard({ namespace }: { namespace: Namespace }) {
           description="This shows real traffic. Chaos, queue and replay controls need an admin token."
         />
       )}
+      <OverviewCards namespace={namespace} />
     </section>
   );
 }

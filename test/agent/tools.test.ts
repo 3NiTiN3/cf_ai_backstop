@@ -69,6 +69,12 @@ describe("read tools", () => {
     expect(overview).toMatchObject({
       namespace: "demo",
       chaos: { mode: "off" },
+      totals: {
+        requestsLastMinute: expect.any(Number),
+        cacheHitPercent: expect.any(Number),
+        queuedWrites: 0,
+      },
+      reposDegraded: 0,
       repos: expect.arrayContaining([
         expect.objectContaining({ repo: "demo/web", breaker: "closed" }),
       ]),

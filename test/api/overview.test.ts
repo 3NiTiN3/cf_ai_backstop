@@ -5,7 +5,13 @@ import { expect, it } from "vitest";
 interface OverviewBody {
   namespace: string;
   totals: Record<string, number>;
-  repos: { repoKey: string; requests: number; hits: number }[];
+  repos: {
+    repoKey: string;
+    requests: number;
+    hits: number;
+    requestsPerMinute: number;
+    queueDepth: number;
+  }[];
 }
 
 async function overview(): Promise<OverviewBody> {
@@ -43,7 +49,13 @@ it("shows demo requests in the overview", async () => {
   );
   expect(body.namespace).toBe("demo");
   expect(body.repos).toContainEqual(
-    expect.objectContaining({ repoKey: "demo/infra", requests: 3, hits: 2 }),
+    expect.objectContaining({
+      repoKey: "demo/infra",
+      requests: 3,
+      hits: 2,
+      requestsPerMinute: 3,
+      queueDepth: 0,
+    }),
   );
   expect(body.totals.requests).toBeGreaterThanOrEqual(3);
 });

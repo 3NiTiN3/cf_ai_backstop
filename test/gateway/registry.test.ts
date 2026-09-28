@@ -16,6 +16,8 @@ it("aggregates repo snapshots per namespace", async () => {
     },
     lastEventAt: 100,
     breaker: "closed",
+    recentRequests: [],
+    queueDepth: 0,
   });
   await registry.report({
     namespace: "demo",
@@ -28,6 +30,8 @@ it("aggregates repo snapshots per namespace", async () => {
     },
     lastEventAt: 200,
     breaker: "open",
+    recentRequests: [],
+    queueDepth: 0,
   });
   await registry.report({
     namespace: "live",
@@ -35,6 +39,8 @@ it("aggregates repo snapshots per namespace", async () => {
     counters: { ...emptyCounters(), requests: 5 },
     lastEventAt: 300,
     breaker: "closed",
+    recentRequests: [],
+    queueDepth: 0,
   });
 
   const overview = await registry.overview("demo");
@@ -55,7 +61,46 @@ it("aggregates repo snapshots per namespace", async () => {
     upstream_calls: 4,
     upstream_avoided: 16,
     avoidedRatio: 0.8,
+    cacheHitRatio: 0.2,
   });
+  expect(overview.reposDegraded).toBe(1);
+});
+
+it("sums requests from the last minute and queue depth", async () => {
+  const registry = env.Registry.getByName("test:registry-rate");
+  const nowSecond = Math.floor(Date.now() / 1000);
+  const base = {
+    namespace: "demo" as const,
+    counters: { ...emptyCounters(), requests: 50 },
+    lastEventAt: 1,
+    breaker: "closed" as const,
+  };
+  await registry.report({
+    ...base,
+    repoKey: "demo/api",
+    recentRequests: [
+      [nowSecond - 120, 40],
+      [nowSecond - 30, 5],
+      [nowSecond, 2],
+    ],
+    queueDepth: 3,
+  });
+  await registry.report({
+    ...base,
+    repoKey: "demo/web",
+    recentRequests: [[nowSecond - 10, 4]],
+    queueDepth: 1,
+  });
+
+  const overview = await registry.overview("demo");
+  expect(overview.repos.map((repo) => repo.requestsPerMinute).sort()).toEqual([
+    4, 7,
+  ]);
+  expect(overview.totals).toMatchObject({
+    requestsPerMinute: 11,
+    queueDepth: 4,
+  });
+  expect(overview.reposDegraded).toBe(0);
 });
 
 it("replaces a repo's previous snapshot", async () => {
@@ -66,6 +111,8 @@ it("replaces a repo's previous snapshot", async () => {
     counters: { ...emptyCounters(), requests: 1 },
     lastEventAt: 1,
     breaker: "closed" as const,
+    recentRequests: [],
+    queueDepth: 0,
   };
   await registry.report(snapshot);
   await registry.report({

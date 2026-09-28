@@ -182,10 +182,14 @@ export class WriteQueue {
   }
 
   hasWaiting(): boolean {
+    return this.waitingCount() > 0;
+  }
+
+  waitingCount(): number {
     const row = this.sql
       .exec(`SELECT COUNT(*) AS count FROM write_queue WHERE ${WAITING}`)
       .one();
-    return Count.parse(row).count > 0;
+    return Count.parse(row).count;
   }
 
   sealedToken(id: string): SealedText | null {

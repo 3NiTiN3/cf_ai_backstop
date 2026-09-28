@@ -14,6 +14,7 @@ import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
 import { MODE_HEADER } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
+import { RequestRate } from "./request-rate";
 import { TrailingThrottle } from "./throttle";
 import { fetchUpstream, type UpstreamResult } from "./upstream";
 import type { SendOutcome, SettleDecision } from "./replay-sender";
@@ -46,6 +47,7 @@ export class RepoGateway extends DurableObject<Env> {
     () => Date.now(),
   );
   private readonly health = new HealthWindow(() => Date.now());
+  private readonly rate = new RequestRate(() => Date.now());
   private readonly incidents = new IncidentTracker({
     sql: this.ctx.storage.sql,
     errorRate: () => this.health.snapshot().errorRate,
@@ -188,6 +190,7 @@ export class RepoGateway extends DurableObject<Env> {
 
   private record(event: GatewayEvent): void {
     this.counters.increment("requests");
+    this.rate.hit();
     if (event.cache === "HIT") this.counters.increment("hits");
     if (event.cache === "COALESCED") this.counters.increment("coalesced");
     this.log(event);
@@ -231,6 +234,8 @@ export class RepoGateway extends DurableObject<Env> {
           counters,
           lastEventAt,
           breaker: this.upstream.state().state,
+          recentRequests: this.rate.recent(),
+          queueDepth: this.writes.queueDepth(),
         })
         .catch(() => undefined),
     );
