@@ -2,6 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
 import { addColumnIfMissing } from "../shared/sql";
 import { BREAKER_STATES, type BreakerState } from "./breaker";
+import type { ChaosConfig } from "./chaos";
+import { ChaosStore, type ChaosEvent } from "./chaos-store";
 import { COUNTER_NAMES, emptyCounters, type CounterTotals } from "./counters";
 import type { Namespace } from "./routes";
 
@@ -42,6 +44,7 @@ const RepoRow = z.object({
 
 export class Registry extends DurableObject<Env> {
   private readonly sql = this.ctx.storage.sql;
+  private readonly chaos = new ChaosStore(this.sql);
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -73,6 +76,19 @@ export class Registry extends DurableObject<Env> {
       Date.now(),
       snapshot.breaker,
     );
+  }
+
+  getChaos(namespace: Namespace): ChaosConfig {
+    return this.chaos.get(namespace);
+  }
+
+  setChaos(namespace: Namespace, config: ChaosConfig): ChaosConfig {
+    this.chaos.set(namespace, config, Date.now());
+    return this.chaos.get(namespace);
+  }
+
+  chaosEvents(namespace: Namespace, limit: number): ChaosEvent[] {
+    return this.chaos.events(namespace, limit);
   }
 
   overview(namespace: Namespace): Overview {

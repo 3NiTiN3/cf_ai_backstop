@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { Transition } from "./breaker";
 import { BreakerStore } from "./breaker-store";
 import { CacheStore } from "./cache";
+import { CachedChaos, applyChaos } from "./chaos";
 import { Counters, type CounterTotals } from "./counters";
 import { EventLog, type GatewayEvent } from "./events";
 import { GuardedUpstream } from "./guarded-upstream";
@@ -9,9 +10,13 @@ import { HealthWindow } from "./health";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
 import { MODE_HEADER, fromUpstream } from "./responses";
-import type { GatewayRoute } from "./routes";
+import type { GatewayRoute, Namespace } from "./routes";
 import { TrailingThrottle } from "./throttle";
-import { fetchUpstream, toUpstreamRequest } from "./upstream";
+import {
+  fetchUpstream,
+  toUpstreamRequest,
+  type UpstreamResult,
+} from "./upstream";
 
 const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
@@ -24,12 +29,17 @@ export interface RepoStats {
 export class RepoGateway extends DurableObject<Env> {
   private readonly counters = new Counters(this.ctx.storage.sql);
   private readonly events = new EventLog(this.ctx.storage.sql);
+  private readonly chaos = new CachedChaos(
+    (namespace) =>
+      this.env.Registry.getByName(REGISTRY_NAME).getChaos(namespace),
+    () => Date.now(),
+  );
   private readonly upstream = new GuardedUpstream(
     new BreakerStore(this.ctx.storage.sql),
     new HealthWindow(() => Date.now()),
     {
       now: () => Date.now(),
-      fetch: (namespace, request) => fetchUpstream(namespace, request),
+      fetch: (namespace, request) => this.fetchWithChaos(namespace, request),
       onTransition: (transition) => this.onTransition(transition),
     },
   );
@@ -90,6 +100,20 @@ export class RepoGateway extends DurableObject<Env> {
       toUpstreamRequest(request, route),
     );
     return fromUpstream(result, "BYPASS");
+  }
+
+  private async fetchWithChaos(
+    namespace: Namespace,
+    request: Request,
+  ): Promise<UpstreamResult> {
+    return applyChaos(
+      await this.chaos.get(namespace),
+      () => fetchUpstream(namespace, request),
+      {
+        random: Math.random,
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      },
+    );
   }
 
   private record(event: GatewayEvent): void {
