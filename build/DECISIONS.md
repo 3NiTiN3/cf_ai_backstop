@@ -70,3 +70,8 @@ Why: Keeps one DO per real repo, never lets a crafted path pick another repo's c
 Context: The mock must not leak state between tests, yet POSTs should return created objects.
 Decision: The mock stores nothing. Reads are built from fixed fixtures, POSTs validate input with zod and return a created object whose id is derived from the input. Latency is injectable (`latencyMs`) so tests run without delay.
 Why: No mutable state at all is simpler than per-isolate storage and makes every read deterministic, which keeps ETags stable for the cache tests.
+
+## 2026-09-29  Task 1.3  Upstream outcome rules
+Context: GitHub reports rate limits with both 429 and 403, and the plan lists outcomes without mapping every status.
+Decision: 429 is `rate_limited`, and so is 403 when `x-ratelimit-remaining` is 0 or `retry-after` is present. 408 counts as `timeout`. Any status below 400 (including 304) is `ok`. Thrown timeouts become a 504 result, other thrown errors a 502. Only Authorization, Accept, X-GitHub-Api-Version and Content-Type are forwarded, so client conditional headers never reach GitHub directly; the cache adds its own validators.
+Why: Matches GitHub's documented rate limit signals and keeps the breaker in phase 2 fed with the right categories.

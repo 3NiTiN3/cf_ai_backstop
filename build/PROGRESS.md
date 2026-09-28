@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 1.3
-- **Last commit:** feat(demo): add deterministic mock GitHub upstream (1.2)
+- **Current:** 1.4
+- **Last commit:** feat(gateway): add upstream client with outcome classification (1.3)
 - **Deployed URL:** https://cf-ai-backstop.gambier-toad-0c.workers.dev
 - **Public repo:** not created yet
 
@@ -26,7 +26,7 @@ None.
 ### Phase 1: Read path
 - [x] 1.1 Routing and repo keys
 - [x] 1.2 Mock GitHub
-- [ ] 1.3 Upstream client
+- [x] 1.3 Upstream client
 - [ ] 1.4 Cache in RepoGateway
 - [ ] 1.5 Conditional revalidation
 - [ ] 1.6 Request coalescing
