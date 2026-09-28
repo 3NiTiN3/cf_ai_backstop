@@ -14,6 +14,7 @@ import { NamespaceInput, RepoInput, notARepo, parseRepo } from "./inputs";
 import {
   MAX_ROWS,
   chaosView,
+  eventCounts,
   eventView,
   healthView,
   overviewView,
@@ -28,6 +29,7 @@ export interface ToolContext {
 type Gateway = DurableObjectStub<RepoGateway>;
 
 const DEFAULT_EVENT_LIMIT = 10;
+const COUNTED_EVENTS = 50;
 
 const LIVE_REFUSAL = {
   refused: true,
@@ -82,8 +84,7 @@ export function createOpsTools(context: ToolContext) {
         })),
     }),
     getRecentEvents: tool({
-      description:
-        "Most recent gateway events for one repo, newest first: reads, writes, breaker changes and replays. Use for questions about what just happened to a repo.",
+      description: `Most recent gateway events for one repo, newest first: reads, writes, breaker changes and replays, with counts by kind over the last ${COUNTED_EVENTS} events and breaker changes oldest first. Use for questions about what just happened to a repo.`,
       inputSchema: RepoRequest.extend({
         limit: z
           .number()
@@ -94,12 +95,16 @@ export function createOpsTools(context: ToolContext) {
           .describe(`How many events, 1 to ${MAX_ROWS}. Default 10.`),
       }),
       execute: ({ limit, ...input }) =>
-        onRepo(input, async (gateway, target) => ({
-          ...repoLabel(target),
-          events: (
-            await gateway.getRecentEvents(limit ?? DEFAULT_EVENT_LIMIT)
-          ).map(eventView),
-        })),
+        onRepo(input, async (gateway, target) => {
+          const events = await gateway.getRecentEvents(COUNTED_EVENTS);
+          return {
+            ...repoLabel(target),
+            counts: eventCounts(events),
+            events: events
+              .slice(0, limit ?? DEFAULT_EVENT_LIMIT)
+              .map(eventView),
+          };
+        }),
     }),
     setChaos: tool({
       description:

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { CHAT_MODEL } from "../agent/model";
-import type { ClosedIncident } from "./incidents";
+import {
+  replayProgress,
+  type ClosedIncident,
+  type Incident,
+} from "./incidents";
 
 export type Generate = (system: string, facts: string) => Promise<string>;
 
@@ -9,7 +13,7 @@ const MAX_SUMMARY_TOKENS = 160;
 const MAX_SUMMARY_CHARS = 600;
 
 const SYSTEM = `You write incident summaries for Backstop, a gateway in front of the GitHub API.
-Write 2 or 3 short plain sentences using only the facts given. Do not add causes, advice or numbers that are not in the facts. Do not use em dashes, lists or headings.`;
+Write 2 or 3 short plain sentences using only the facts given. Do not add causes, advice or numbers that are not in the facts. Do not say whether queued writes have been replayed; replay progress is reported separately. Do not use em dashes, lists or headings.`;
 
 const AiText = z.object({ response: z.string() });
 
@@ -64,8 +68,20 @@ function factSheet(incident: ClosedIncident, repo: string | null): string {
     `Peak upstream error rate: ${percent(incident.peakErrorRate)}`,
     `Reads served from stale cache: ${incident.readsServedStale}`,
     `Writes queued for replay: ${incident.writesQueued}`,
-    `Queued writes are replayed in order now that GitHub has recovered.`,
   ].join("\n");
+}
+
+export function withReplayStatus(incident: Incident): string | null {
+  if (incident.summary === null) return null;
+  const { writesQueued, writesReplayed } = incident;
+  switch (replayProgress(incident)) {
+    case "nothing queued":
+      return incident.summary;
+    case "completed":
+      return `${incident.summary} All ${writesQueued} queued writes have been replayed.`;
+    case "under way":
+      return `${incident.summary} Replay of the queued writes is under way: ${writesReplayed} of ${writesQueued} replayed so far.`;
+  }
 }
 
 function tidy(text: string): string | null {

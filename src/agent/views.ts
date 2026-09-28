@@ -1,6 +1,7 @@
 import type { ChaosConfig } from "../gateway/chaos";
 import type { GatewayEvent } from "../gateway/events";
 import type { RepoIncident } from "../gateway/incident-query";
+import { replayProgress } from "../gateway/incidents";
 import type { QueueListing } from "../gateway/queue-control";
 import type { Overview } from "../gateway/registry";
 import type { RepoHealth } from "../gateway/repo-gateway";
@@ -99,6 +100,28 @@ export function eventView(event: GatewayEvent) {
   };
 }
 
+export function eventCounts(events: GatewayEvent[]) {
+  const reads = events.filter((event) => event.kind === "read");
+  const writes = events.filter((event) => event.kind === "write");
+  const replays = events.filter((event) => event.kind === "replay");
+  const replaysSucceeded = replays.filter(isSuccess).length;
+  const oldest = events.at(-1);
+  return {
+    events: events.length,
+    since: oldest ? new Date(oldest.ts).toISOString() : null,
+    reads: reads.length,
+    readsByCache: countBy(reads.map((event) => event.cache)),
+    writes: writes.length,
+    writesQueued: writes.filter((event) => event.cache === "QUEUED").length,
+    replaysSucceeded,
+    replaysFailed: replays.length - replaysSucceeded,
+    breakerChanges: events
+      .filter((event) => event.kind === "breaker")
+      .map((event) => event.detail ?? "")
+      .reverse(),
+  };
+}
+
 export function incidentView(
   incident: RepoIncident,
   lastSeenAt: number | null,
@@ -112,6 +135,7 @@ export function incidentView(
     readsServedStale: incident.readsServedStale,
     writesQueued: incident.writesQueued,
     writesReplayed: incident.writesReplayed,
+    replay: replayProgress(incident),
     summary: incident.summary,
     newSinceLastSeen:
       lastSeenAt === null || incidentTime(incident) > lastSeenAt,
@@ -124,6 +148,16 @@ export function incidentTime(incident: RepoIncident): number {
 
 function percent(ratio: number): number {
   return Math.round(ratio * 1000) / 10;
+}
+
+function isSuccess(event: GatewayEvent): boolean {
+  return event.status >= 200 && event.status < 300;
+}
+
+function countBy(values: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const value of values) counts[value] = (counts[value] ?? 0) + 1;
+  return counts;
 }
 
 function isoOrNull(ms: number | null): string | null {

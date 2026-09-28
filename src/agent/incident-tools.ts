@@ -44,6 +44,7 @@ export function createIncidentTools(context: IncidentToolContext) {
         }
         return {
           namespace: resolved,
+          count: incidents.length,
           incidents: incidents.map((incident) =>
             incidentView(incident, state.lastSeenIncidentAt),
           ),

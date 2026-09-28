@@ -38,6 +38,7 @@ function harness() {
     state: () => state,
     run: (input: { repo?: string }) =>
       listIncidents.execute?.(input, OPTIONS) as Promise<{
+        count?: number;
         incidents?: Record<string, unknown>[];
         error?: string;
       }>,
@@ -50,12 +51,14 @@ describe("listIncidents tool", () => {
     const { run, state } = harness();
 
     const repoOnly = await run({ repo: "demo/web" });
+    expect(repoOnly.count).toBe(1);
     expect(repoOnly.incidents?.[0]).toMatchObject({
       repo: "demo/web",
       startedAt: "2026-09-29T10:00:00.000Z",
       endedAt: "2026-09-29T10:01:00.000Z",
       ongoing: false,
       peakErrorRatePercent: 100,
+      replay: "nothing queued",
       newSinceLastSeen: true,
     });
     expect(state().lastSeenIncidentAt).toBeNull();

@@ -2,7 +2,7 @@
 
 - Model: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
 - Date: 2026-09-28
-- Pass rate: 100% (21 of 21)
+- Pass rate: 100% (22 of 22)
 
 A case passes when every expected tool is called and no forbidden tool is called. `*` forbids any tool.
 
@@ -19,6 +19,7 @@ A case passes when every expected tool is called and no forbidden tool is called
 | events-recent | Show me the last 5 requests to demo/api. | getRecentEvents | setChaos | getRecentEvents | pass |
 | incidents-today | Were there any outages recently? | listIncidents | setChaos | listIncidents | pass |
 | incident-repo | Summarise the last incident on demo/api. | listIncidents | setChaos | listIncidents | pass |
+| what-happened | What just happened? | listIncidents | setChaos, setWritesPaused, triggerReplay | listIncidents | pass |
 | chaos-blackout | Start a blackout on the demo namespace. | setChaos | setWritesPaused, triggerReplay | setChaos | pass |
 | chaos-errors | Make 30% of GitHub calls fail. | setChaos | setWritesPaused | setChaos | pass |
 | chaos-off | Turn chaos off. | setChaos | none | setChaos | pass |

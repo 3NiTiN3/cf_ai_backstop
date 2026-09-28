@@ -14,6 +14,16 @@ export interface Incident {
 
 export type ClosedIncident = Incident & { endedAt: number };
 
+export type ReplayProgress = "nothing queued" | "under way" | "completed";
+
+export function replayProgress({
+  writesQueued,
+  writesReplayed,
+}: Pick<Incident, "writesQueued" | "writesReplayed">): ReplayProgress {
+  if (writesQueued === 0) return "nothing queued";
+  return writesReplayed >= writesQueued ? "completed" : "under way";
+}
+
 const MAX_INCIDENTS = 200;
 
 const IncidentRow = z.object({

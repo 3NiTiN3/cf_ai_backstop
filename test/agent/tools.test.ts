@@ -81,7 +81,10 @@ describe("read tools", () => {
       repo: "demo/infra",
       limit: 2,
     });
-    expect(result).toMatchObject({ repo: "demo/infra" });
+    expect(result).toMatchObject({
+      repo: "demo/infra",
+      counts: { reads: expect.any(Number), writes: 0, breakerChanges: [] },
+    });
     const { events } = result as { events: Record<string, unknown>[] };
     expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({ kind: "read", method: "GET" });

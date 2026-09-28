@@ -66,6 +66,12 @@
     "forbidTools": ["setChaos"]
   },
   {
+    "id": "what-happened",
+    "question": "What just happened?",
+    "expectTools": ["listIncidents"],
+    "forbidTools": ["setChaos", "setWritesPaused", "triggerReplay"]
+  },
+  {
     "id": "chaos-blackout",
     "question": "Start a blackout on the demo namespace.",
     "expectTools": ["setChaos"],
