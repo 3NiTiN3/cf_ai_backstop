@@ -7,6 +7,7 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
+import { chatErrorMessage } from "./agent/errors";
 import { chatModel } from "./agent/model";
 import { buildSystemPrompt } from "./agent/prompt";
 import { answerAfterTools } from "./agent/steps";
@@ -53,7 +54,7 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
       abortSignal: options?.abortSignal,
     });
 
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({ onError: chatErrorMessage });
   }
 
   // Browsers can push state over the socket; only the agent's own tools may change it.

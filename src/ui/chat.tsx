@@ -3,6 +3,7 @@ import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import type { UIMessage } from "ai";
 import {
+  Banner,
   Button,
   Empty,
   InputArea,
@@ -17,6 +18,7 @@ import {
   PaperPlaneRightIcon,
   StopIcon,
   TrashIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react";
 import type { Namespace } from "../gateway/routes";
 import type { OpsAgent } from "../server";
@@ -61,6 +63,7 @@ export function Chat({ namespace }: { namespace: Namespace }) {
     addToolApprovalResponse,
     stop,
     status,
+    error,
   } = useAgentChat({ agent, experimental_throttle: 100 });
 
   const isStreaming = status === "streaming" || status === "submitted";
@@ -154,6 +157,15 @@ export function Chat({ namespace }: { namespace: Namespace }) {
       </div>
 
       <div className="border-t border-kumo-line bg-kumo-base">
+        {error && (
+          <div role="alert" className="px-4 pt-3">
+            <Banner
+              variant="error"
+              icon={<WarningCircleIcon size={18} />}
+              description={error.message}
+            />
+          </div>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
