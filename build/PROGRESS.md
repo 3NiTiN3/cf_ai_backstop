@@ -3,9 +3,9 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 0.6
-- **Last commit:** build: add typecheck, lint, format and test tooling (0.5)
-- **Deployed URL:** not deployed yet
+- **Current:** Phase 0 gate
+- **Last commit:** chore(build): record first deployment (0.6)
+- **Deployed URL:** https://cf-ai-backstop.gambier-toad-0c.workers.dev
 - **Public repo:** not created yet
 
 ## Blockers
@@ -20,7 +20,7 @@ None.
 - [x] 0.3 Rename and strip examples
 - [x] 0.4 Switch to Workers AI
 - [x] 0.5 Quality tooling
-- [ ] 0.6 First deploy
+- [x] 0.6 First deploy
 - [ ] Phase 0 gate
 
 ### Phase 1: Read path
