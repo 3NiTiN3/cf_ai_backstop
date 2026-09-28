@@ -2,6 +2,7 @@ import { REGISTRY_NAME } from "../gateway/registry";
 import { jsonError } from "../gateway/responses";
 import { bodyTooLarge } from "./body";
 import { getChaos, postChaos } from "./chaos";
+import { getIncidents } from "./incidents";
 import { NamespaceQuery } from "./namespace";
 import { handleRepoRequest } from "./repos";
 
@@ -26,6 +27,9 @@ function route(request: Request, url: URL, env: Env): Promise<Response> {
     if (method === "GET") return getChaos(url, env);
     if (method === "POST") return postChaos(request, env);
     return notAllowed();
+  }
+  if (pathname === "/api/incidents") {
+    return method === "GET" ? getIncidents(url, env) : notAllowed();
   }
   if (pathname.startsWith(REPOS_PREFIX)) {
     const segments = pathname.slice(REPOS_PREFIX.length).split("/");

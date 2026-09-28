@@ -8,6 +8,8 @@ const watching: OpsState = {
   lastSeenIncidentAt: null,
 };
 
+const EM_DASH = String.fromCharCode(0x2014);
+
 function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
@@ -34,6 +36,6 @@ describe("buildSystemPrompt", () => {
   });
 
   it("contains no em dashes", () => {
-    expect(buildSystemPrompt(watching)).not.toContain("—");
+    expect(buildSystemPrompt(watching)).not.toContain(EM_DASH);
   });
 });

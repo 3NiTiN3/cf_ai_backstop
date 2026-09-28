@@ -57,6 +57,12 @@ export function repoKeyOf(owner: string, repo: string): string | null {
   return `${decodedOwner}/${decodedRepo}`.toLowerCase();
 }
 
+export function repoKeyFromName(name: string): string | null {
+  const [owner, repo, ...rest] = name.trim().split("/");
+  if (owner === undefined || repo === undefined || rest.length > 0) return null;
+  return repoKeyOf(owner, repo);
+}
+
 function isGitHubName(value: string | null): value is string {
   return value !== null && GITHUB_NAME.test(value) && !/^\.+$/.test(value);
 }

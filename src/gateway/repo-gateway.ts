@@ -7,6 +7,9 @@ import { Counters, type CounterTotals } from "./counters";
 import { EventLog, type GatewayEvent } from "./events";
 import { GuardedUpstream, type GatewayMode } from "./guarded-upstream";
 import { HealthWindow, type HealthSnapshot } from "./health";
+import { workersAiGenerator } from "./incident-summary";
+import { IncidentTracker } from "./incident-tracker";
+import type { Incident } from "./incidents";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
 import { MODE_HEADER } from "./responses";
@@ -20,6 +23,7 @@ import { WriteSide, type PauseResult } from "./write-side";
 
 const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
+const MAX_INCIDENTS_PER_CALL = 50;
 
 export interface RepoStats {
   counters: CounterTotals;
@@ -42,6 +46,13 @@ export class RepoGateway extends DurableObject<Env> {
     () => Date.now(),
   );
   private readonly health = new HealthWindow(() => Date.now());
+  private readonly incidents = new IncidentTracker({
+    sql: this.ctx.storage.sql,
+    errorRate: () => this.health.snapshot().errorRate,
+    repo: () => this.route?.repoKey ?? null,
+    generate: workersAiGenerator(this.env.AI),
+    waitUntil: (promise) => this.ctx.waitUntil(promise),
+  });
   private readonly upstream = new GuardedUpstream(
     new BreakerStore(this.ctx.storage.sql),
     this.health,
@@ -118,6 +129,12 @@ export class RepoGateway extends DurableObject<Env> {
     return this.events.recent(Number.isFinite(bounded) ? bounded : 1);
   }
 
+  listIncidents(limit: number): Incident[] {
+    return this.incidents.list(
+      Math.min(Math.max(Math.floor(limit), 1), MAX_INCIDENTS_PER_CALL),
+    );
+  }
+
   claimReplayBatch(): string[] {
     return this.writes.claimBatch();
   }
@@ -173,12 +190,16 @@ export class RepoGateway extends DurableObject<Env> {
     this.counters.increment("requests");
     if (event.cache === "HIT") this.counters.increment("hits");
     if (event.cache === "COALESCED") this.counters.increment("coalesced");
-    this.events.record(event);
-    this.reporter.trigger();
+    this.log(event);
   }
 
   private note(event: Omit<GatewayEvent, "ts">): void {
-    this.events.record({ ts: Date.now(), ...event });
+    this.log({ ts: Date.now(), ...event });
+  }
+
+  private log(event: GatewayEvent): void {
+    this.events.record(event);
+    this.incidents.observe(event);
     this.reporter.trigger();
   }
 
@@ -193,6 +214,7 @@ export class RepoGateway extends DurableObject<Env> {
       latencyMs: 0,
       detail: `${transition.from} -> ${transition.to} (${transition.reason})`,
     });
+    this.incidents.onTransition(transition);
     this.reportToRegistry();
     if (transition.to === "closed") this.writes.onRecovered();
   }
