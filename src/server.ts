@@ -2,6 +2,8 @@ import { routeAgentRequest } from "agents";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import { convertToModelMessages, pruneMessages, streamText } from "ai";
 import { chatModel } from "./agent/model";
+import { buildSystemPrompt } from "./agent/prompt";
+import { INITIAL_OPS_STATE, type OpsState } from "./agent/state";
 import { handleApiRequest } from "./api/handler";
 import { handleGatewayRequest } from "./gateway/handler";
 import { jsonError } from "./gateway/responses";
@@ -10,7 +12,8 @@ export { RepoGateway } from "./gateway/repo-gateway";
 export { Registry } from "./gateway/registry";
 export { ReplayWorkflow } from "./workflows/replay";
 
-export class OpsAgent extends AIChatAgent<Env> {
+export class OpsAgent extends AIChatAgent<Env, OpsState> {
+  override initialState = INITIAL_OPS_STATE;
   override maxPersistedMessages = 100;
   override chatRecovery = true;
 
@@ -20,7 +23,7 @@ export class OpsAgent extends AIChatAgent<Env> {
   ) {
     const result = streamText({
       model: chatModel(this.env.AI, this.sessionAffinity),
-      system: "You are a helpful assistant.",
+      system: buildSystemPrompt(this.state),
       messages: pruneMessages({
         messages: await convertToModelMessages(this.messages),
         toolCalls: "before-last-2-messages",
