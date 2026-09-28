@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -9,10 +9,14 @@ export interface Polled<T> {
 
 type Keyed<T> = Polled<T> & { key: string };
 
+export type Poll<T> = Polled<T> & { refresh: () => void };
+
 export function usePoll<T>(
   key: string,
   load: (signal: AbortSignal) => Promise<T>,
-): Polled<T> {
+): Poll<T> {
+  const tickNow = useRef<() => void>(() => undefined);
+  const refresh = useCallback(() => tickNow.current(), []);
   const [state, setState] = useState<Keyed<T>>({
     key,
     data: null,
@@ -52,6 +56,7 @@ export function usePoll<T>(
       else void tick();
     };
 
+    tickNow.current = () => void tick();
     document.addEventListener("visibilitychange", onVisibilityChange);
     void tick();
     return () => {
@@ -61,6 +66,6 @@ export function usePoll<T>(
     };
   }, [key, load]);
 
-  if (state.key !== key) return { data: null, error: null };
-  return { data: state.data, error: state.error };
+  if (state.key !== key) return { data: null, error: null, refresh };
+  return { data: state.data, error: state.error, refresh };
 }
