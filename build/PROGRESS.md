@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 0.2
-- **Last commit:** chore(build): record toolchain versions (0.1)
+- **Current:** 0.3
+- **Last commit:** chore(build): scaffold from Cloudflare agents starter (0.2)
 - **Deployed URL:** not deployed yet
 - **Public repo:** not created yet
 
@@ -16,7 +16,7 @@ None.
 
 ### Phase 0: Bootstrap
 - [x] 0.1 Toolchain check
-- [ ] 0.2 Scaffold from the agents starter
+- [x] 0.2 Scaffold from the agents starter
 - [ ] 0.3 Rename and strip examples
 - [ ] 0.4 Switch to Workers AI
 - [ ] 0.5 Quality tooling
