@@ -22,7 +22,9 @@ import {
 } from "@phosphor-icons/react";
 import type { Namespace } from "../gateway/routes";
 import type { OpsAgent } from "../server";
+import { isNotice, noticeText } from "../agent/notices";
 import { MessagePart } from "./message-part";
+import { NoticeMessage } from "./notice-message";
 
 function ConnectionStatus({ connected }: { connected: boolean }) {
   return (
@@ -138,6 +140,12 @@ export function Chat({ namespace }: { namespace: Namespace }) {
             const isUser = message.role === "user";
             const isLastAssistant =
               message.role === "assistant" && index === messages.length - 1;
+
+            if (isNotice(message) && !showDebug) {
+              return (
+                <NoticeMessage key={message.id} text={noticeText(message)} />
+              );
+            }
 
             return (
               <div key={message.id} className="space-y-2">

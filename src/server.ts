@@ -3,12 +3,14 @@ import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import type { Connection } from "agents";
 import {
   convertToModelMessages,
+  createUIMessageStreamResponse,
   pruneMessages,
   stepCountIs,
   streamText,
 } from "ai";
 import { chatErrorMessage } from "./agent/errors";
 import { chatModel } from "./agent/model";
+import { errorsAsNotices, isNotice } from "./agent/notices";
 import { buildSystemPrompt } from "./agent/prompt";
 import { answerAfterTools } from "./agent/steps";
 import { INITIAL_OPS_STATE, readOpsState, type OpsState } from "./agent/state";
@@ -39,7 +41,9 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
       model: chatModel(this.env.AI, this.sessionAffinity),
       system: buildSystemPrompt({ ...state, namespace }),
       messages: pruneMessages({
-        messages: await convertToModelMessages(this.messages),
+        messages: await convertToModelMessages(
+          this.messages.filter((message) => !isNotice(message)),
+        ),
         toolCalls: "before-last-2-messages",
         reasoning: "before-last-message",
       }),
@@ -54,7 +58,11 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
       abortSignal: options?.abortSignal,
     });
 
-    return result.toUIMessageStreamResponse({ onError: chatErrorMessage });
+    return createUIMessageStreamResponse({
+      stream: result
+        .toUIMessageStream({ onError: chatErrorMessage })
+        .pipeThrough(errorsAsNotices()),
+    });
   }
 
   // Browsers can push state over the socket; only the agent's own tools may change it.
