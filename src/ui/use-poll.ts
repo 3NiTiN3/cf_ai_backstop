@@ -61,5 +61,6 @@ export function usePoll<T>(
     };
   }, [key, load]);
 
-  return state.key === key ? state : { data: null, error: null };
+  if (state.key !== key) return { data: null, error: null };
+  return { data: state.data, error: state.error };
 }

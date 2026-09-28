@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { OverviewSchema, overviewStats } from "../../src/ui/overview-data";
 
+const HEALTH = {
+  errorRate: 0,
+  p95LatencyMs: null,
+  cacheHitRatio: 0.75,
+  queueDepth: 0,
+  errorHistory: [],
+};
+
 const response = {
   namespace: "demo",
   totals: {
@@ -17,8 +25,8 @@ const response = {
   },
   reposDegraded: 1,
   repos: [
-    { repoKey: "demo/api", breaker: "open", requests: 700 },
-    { repoKey: "demo/web", breaker: "closed", requests: 500 },
+    { repoKey: "demo/api", breaker: "open", requests: 700, ...HEALTH },
+    { repoKey: "demo/web", breaker: "closed", requests: 500, ...HEALTH },
   ],
 };
 

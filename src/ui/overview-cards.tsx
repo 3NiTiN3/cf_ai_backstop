@@ -1,11 +1,8 @@
-import type { Namespace } from "../gateway/routes";
-import { overviewStats } from "./overview-data";
+import { overviewStats, type OverviewData } from "./overview-data";
 import { StatCard } from "./stat-card";
-import { useOverview } from "./use-overview";
+import type { Polled } from "./use-poll";
 
-export function OverviewCards({ namespace }: { namespace: Namespace }) {
-  const { data, error } = useOverview(namespace);
-
+export function OverviewCards({ data, error }: Polled<OverviewData>) {
   return (
     <section aria-labelledby="overview-heading" className="space-y-2">
       <h2

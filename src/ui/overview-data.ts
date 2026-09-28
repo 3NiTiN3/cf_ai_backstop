@@ -14,7 +14,15 @@ export const OverviewSchema = z.object({
   }),
   reposDegraded: z.number(),
   repos: z.array(
-    z.object({ repoKey: z.string(), breaker: z.enum(BREAKER_STATES) }),
+    z.object({
+      repoKey: z.string(),
+      breaker: z.enum(BREAKER_STATES),
+      errorRate: z.number(),
+      p95LatencyMs: z.number().nullable(),
+      cacheHitRatio: z.number(),
+      queueDepth: z.number(),
+      errorHistory: z.array(z.number().nullable()),
+    }),
   ),
 });
 
