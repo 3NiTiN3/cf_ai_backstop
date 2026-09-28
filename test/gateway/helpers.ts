@@ -29,7 +29,7 @@ export function okResult(
 
 export interface FakeUpstream {
   calls: Request[];
-  respond: (request: Request) => UpstreamResult;
+  respond: (request: Request) => UpstreamResult | Promise<UpstreamResult>;
 }
 
 export interface Harness {

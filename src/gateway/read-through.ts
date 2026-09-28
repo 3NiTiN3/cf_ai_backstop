@@ -1,5 +1,6 @@
 import { cacheKey, type CacheEntry, type CacheStore } from "./cache";
 import { isCacheable, ttlFor } from "./cache-policy";
+import { Coalescer } from "./coalesce";
 import type { Counters } from "./counters";
 import { fromCache, fromUpstream } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
@@ -10,7 +11,14 @@ export interface ReadDeps {
   upstream: (namespace: Namespace, request: Request) => Promise<UpstreamResult>;
 }
 
+interface FetchOutcome {
+  result: UpstreamResult;
+  revalidated: CacheEntry | null;
+}
+
 export class ReadThroughCache {
+  private readonly coalescer = new Coalescer<FetchOutcome>();
+
   constructor(
     private readonly store: CacheStore,
     private readonly counters: Counters,
@@ -25,14 +33,34 @@ export class ReadThroughCache {
       this.counters.increment("upstream_avoided");
       return fromCache(cached, "HIT");
     }
+    const { promise, shared } = this.coalescer.run(key, () =>
+      this.refetch(key, request, route, cached),
+    );
+    const outcome = await promise;
+    const response = outcome.revalidated
+      ? fromCache(outcome.revalidated, "REVALIDATED")
+      : fromUpstream(outcome.result, "MISS");
+    if (shared) {
+      this.counters.increment("upstream_avoided");
+      response.headers.set("x-backstop-coalesced", "1");
+    }
+    return response;
+  }
+
+  private async refetch(
+    key: string,
+    request: Request,
+    route: GatewayRoute,
+    cached: CacheEntry | null,
+  ): Promise<FetchOutcome> {
     const result = await this.fetch(request, route, cached);
     if (cached && result.status === 304) {
       this.store.refresh(key, this.deps.now(), this.expiry(route));
       this.counters.increment("revalidated");
-      return fromCache(cached, "REVALIDATED");
+      return { result, revalidated: cached };
     }
     this.storeIfCacheable(key, request.method, route, result);
-    return fromUpstream(result, "MISS");
+    return { result, revalidated: null };
   }
 
   private fetch(
