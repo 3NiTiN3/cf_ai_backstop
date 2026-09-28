@@ -20,3 +20,8 @@ Why: It targets a real, current problem (GitHub reliability under AI-driven load
 Context: The gateway makes decisions that must be predictable (caching, breaker, queueing).
 Decision: All gateway logic is plain code. The LLM only explains state through tools and phrases incident summaries from recorded facts.
 Why: Predictable behaviour, testable guarantees, and no invented numbers.
+
+## 2026-09-28  Task 0.1  Toolchain versions
+Context: The build needs a known toolchain before scaffolding.
+Decision: Node v24.18.0, npm 11.16.0, git 2.33.0, wrangler 4.143.0 (via npx). Wrangler is logged in with OAuth to the user's personal Cloudflare account (the account name is the default "<email>'s Account" form, so the email is not recorded here). Git identity is the user's GitHub noreply address.
+Why: Records the baseline so later version problems can be traced.

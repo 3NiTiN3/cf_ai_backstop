@@ -3,8 +3,8 @@
 ## Status
 
 - **Mode:** phase
-- **Current:** 0.1
-- **Last commit:** none
+- **Current:** 0.2
+- **Last commit:** chore(build): record toolchain versions (0.1)
 - **Deployed URL:** not deployed yet
 - **Public repo:** not created yet
 
@@ -15,7 +15,7 @@ None.
 ## Checklist
 
 ### Phase 0: Bootstrap
-- [ ] 0.1 Toolchain check
+- [x] 0.1 Toolchain check
 - [ ] 0.2 Scaffold from the agents starter
 - [ ] 0.3 Rename and strip examples
 - [ ] 0.4 Switch to Workers AI
