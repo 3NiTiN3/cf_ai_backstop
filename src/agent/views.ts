@@ -3,7 +3,7 @@ import type { GatewayEvent } from "../gateway/events";
 import type { RepoIncident } from "../gateway/incident-query";
 import { replayProgress } from "../gateway/incidents";
 import type { QueueListing } from "../gateway/queue-control";
-import type { Overview } from "../gateway/registry";
+import type { Overview } from "../gateway/overview";
 import type { RepoHealth } from "../gateway/repo-gateway";
 import { percent } from "../shared/percent";
 
@@ -33,6 +33,7 @@ export function overviewView(overview: Overview, chaos: ChaosConfig) {
       requests: repo.requests,
       cacheHits: repo.hits,
       upstreamCalls: repo.upstream_calls,
+      errorRatePercent: percent(repo.errorRate),
       queuedWrites: repo.queueDepth,
       lastEventAt: isoOrNull(repo.lastEventAt),
     })),

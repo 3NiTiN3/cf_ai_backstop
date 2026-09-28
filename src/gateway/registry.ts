@@ -1,12 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
-import { z } from "zod";
 import { addColumnIfMissing } from "../shared/sql";
-import { BREAKER_STATES, type BreakerState } from "./breaker";
+import type { BreakerState } from "./breaker";
 import type { ChaosConfig } from "./chaos";
 import { ChaosStore, type ChaosEvent } from "./chaos-store";
-import { COUNTER_NAMES, emptyCounters, type CounterTotals } from "./counters";
-import { countLastMinute, type RateBuckets } from "./request-rate";
+import type { CounterTotals } from "./counters";
+import { RepoRow, overviewOf, toSummary, type Overview } from "./overview";
+import type { RateBuckets } from "./request-rate";
 import type { Namespace } from "./routes";
+import type { HistoryBuckets } from "./upstream-history";
 
 export const REGISTRY_NAME = "global";
 
@@ -18,46 +19,19 @@ export interface RepoSnapshot {
   breaker: BreakerState;
   recentRequests: RateBuckets;
   queueDepth: number;
+  upstreamHistory: HistoryBuckets;
+  errorRate: number;
+  p95LatencyMs: number | null;
 }
 
-export interface RepoSummary extends CounterTotals {
-  repoKey: string;
-  breaker: BreakerState;
-  lastEventAt: number | null;
-  reportedAt: number;
-  requestsPerMinute: number;
-  queueDepth: number;
-}
-
-export interface OverviewTotals extends CounterTotals {
-  avoidedRatio: number;
-  cacheHitRatio: number;
-  requestsPerMinute: number;
-  queueDepth: number;
-}
-
-export interface Overview {
-  namespace: Namespace;
-  totals: OverviewTotals;
-  reposDegraded: number;
-  repos: RepoSummary[];
-}
-
-const StoredCounters = z.object(
-  Object.fromEntries(COUNTER_NAMES.map((name) => [name, z.number()])),
-);
-
-const RepoRow = z.object({
-  repo_key: z.string(),
-  counters: z.string(),
-  last_event_at: z.number().nullable(),
-  reported_at: z.number(),
-  breaker: z.enum(BREAKER_STATES),
-  recent_requests: z.string(),
-  queue_depth: z.number(),
-});
-
-const StoredBuckets = z.array(z.tuple([z.number(), z.number()]));
+const ADDED_COLUMNS: [column: string, definition: string][] = [
+  ["breaker", "TEXT NOT NULL DEFAULT 'closed'"],
+  ["recent_requests", "TEXT NOT NULL DEFAULT '[]'"],
+  ["queue_depth", "INT NOT NULL DEFAULT 0"],
+  ["upstream_history", "TEXT NOT NULL DEFAULT '[]'"],
+  ["error_rate", "REAL NOT NULL DEFAULT 0"],
+  ["p95_ms", "INT"],
+];
 
 export class Registry extends DurableObject<Env> {
   private readonly sql = this.ctx.storage.sql;
@@ -73,32 +47,17 @@ export class Registry extends DurableObject<Env> {
       reported_at INT NOT NULL,
       PRIMARY KEY (namespace, repo_key)
     )`);
-    addColumnIfMissing(
-      this.sql,
-      "repos",
-      "breaker",
-      "TEXT NOT NULL DEFAULT 'closed'",
-    );
-    addColumnIfMissing(
-      this.sql,
-      "repos",
-      "recent_requests",
-      "TEXT NOT NULL DEFAULT '[]'",
-    );
-    addColumnIfMissing(
-      this.sql,
-      "repos",
-      "queue_depth",
-      "INT NOT NULL DEFAULT 0",
-    );
+    for (const [column, definition] of ADDED_COLUMNS) {
+      addColumnIfMissing(this.sql, "repos", column, definition);
+    }
   }
 
   report(snapshot: RepoSnapshot): void {
     this.sql.exec(
       `INSERT OR REPLACE INTO repos
         (namespace, repo_key, counters, last_event_at, reported_at, breaker,
-          recent_requests, queue_depth)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          recent_requests, queue_depth, upstream_history, error_rate, p95_ms)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       snapshot.namespace,
       snapshot.repoKey,
       JSON.stringify(snapshot.counters),
@@ -107,6 +66,9 @@ export class Registry extends DurableObject<Env> {
       snapshot.breaker,
       JSON.stringify(snapshot.recentRequests),
       snapshot.queueDepth,
+      JSON.stringify(snapshot.upstreamHistory),
+      snapshot.errorRate,
+      snapshot.p95LatencyMs,
     );
   }
 
@@ -140,53 +102,7 @@ export class Registry extends DurableObject<Env> {
     const repos = this.sql
       .exec("SELECT * FROM repos WHERE namespace = ?", namespace)
       .toArray()
-      .map((row) => toSummary(RepoRow.parse(row), now))
-      .sort((a, b) => b.requests - a.requests);
-    return {
-      namespace,
-      totals: totalsOf(repos),
-      reposDegraded: repos.filter((repo) => repo.breaker !== "closed").length,
-      repos,
-    };
+      .map((row) => toSummary(RepoRow.parse(row), now));
+    return overviewOf(namespace, repos);
   }
-}
-
-function toSummary(row: z.infer<typeof RepoRow>, now: number): RepoSummary {
-  const counters = StoredCounters.parse(JSON.parse(row.counters));
-  const buckets = StoredBuckets.parse(JSON.parse(row.recent_requests));
-  return {
-    ...emptyCounters(),
-    ...counters,
-    repoKey: row.repo_key,
-    breaker: row.breaker,
-    lastEventAt: row.last_event_at,
-    reportedAt: row.reported_at,
-    requestsPerMinute: countLastMinute(buckets, now),
-    queueDepth: row.queue_depth,
-  };
-}
-
-function totalsOf(repos: RepoSummary[]): OverviewTotals {
-  const totals = emptyCounters();
-  let requestsPerMinute = 0;
-  let queueDepth = 0;
-  for (const repo of repos) {
-    for (const name of COUNTER_NAMES) totals[name] += repo[name];
-    requestsPerMinute += repo.requestsPerMinute;
-    queueDepth += repo.queueDepth;
-  }
-  return {
-    ...totals,
-    avoidedRatio: ratio(
-      totals.upstream_avoided,
-      totals.upstream_avoided + totals.upstream_calls,
-    ),
-    cacheHitRatio: ratio(totals.hits, totals.requests),
-    requestsPerMinute,
-    queueDepth,
-  };
-}
-
-function ratio(part: number, whole: number): number {
-  return whole === 0 ? 0 : part / whole;
 }

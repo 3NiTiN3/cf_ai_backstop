@@ -40,6 +40,11 @@ export interface ChaosDeps {
 
 const CACHE_MS = 2000;
 
+const SYSTEM_DEPS: ChaosDeps = {
+  random: Math.random,
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
 export async function applyChaos(
   config: ChaosConfig,
   call: () => Promise<UpstreamResult>,
@@ -79,6 +84,13 @@ export class CachedChaos {
     const config = await this.load(namespace).catch(() => CHAOS_OFF);
     this.entries.set(namespace, { config, loadedAt: this.now() });
     return config;
+  }
+
+  async wrap(
+    namespace: Namespace,
+    call: () => Promise<UpstreamResult>,
+  ): Promise<UpstreamResult> {
+    return applyChaos(await this.get(namespace), call, SYSTEM_DEPS);
   }
 }
 

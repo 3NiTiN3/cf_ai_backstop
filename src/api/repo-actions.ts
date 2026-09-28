@@ -25,6 +25,16 @@ export const REPO_ACTIONS: RepoAction[] = [
       Response.json({ ...target, ...(await gateway.getHealth()) }),
   },
   {
+    path: /^timeline$/,
+    method: "GET",
+    admin: false,
+    run: async (gateway, target) =>
+      Response.json({
+        ...target,
+        entries: await gateway.getTimeline(target.namespace),
+      }),
+  },
+  {
     path: /^replay$/,
     method: "POST",
     admin: true,

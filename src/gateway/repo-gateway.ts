@@ -2,7 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { Breaker, Transition } from "./breaker";
 import { BreakerStore } from "./breaker-store";
 import { CacheStore } from "./cache";
-import { CachedChaos, applyChaos } from "./chaos";
+import { CachedChaos } from "./chaos";
 import { Counters, type CounterTotals } from "./counters";
 import { EventLog, type GatewayEvent } from "./events";
 import { GuardedUpstream, type GatewayMode } from "./guarded-upstream";
@@ -14,15 +14,14 @@ import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
 import { MODE_HEADER } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
-import { RequestRate } from "./request-rate";
-import { TrailingThrottle } from "./throttle";
+import { RepoReporter } from "./repo-reporter";
+import { TIMELINE_LIMIT, buildTimeline, type TimelineEntry } from "./timeline";
 import { fetchUpstream, type UpstreamResult } from "./upstream";
 import type { SendOutcome, SettleDecision } from "./replay-sender";
 import type { ReplayTarget, StartResult } from "./replay-trigger";
 import type { QueueChange, QueueListing } from "./queue-control";
 import { WriteSide, type PauseResult } from "./write-side";
 
-const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
 const MAX_INCIDENTS_PER_CALL = 50;
 
@@ -47,7 +46,6 @@ export class RepoGateway extends DurableObject<Env> {
     () => Date.now(),
   );
   private readonly health = new HealthWindow(() => Date.now());
-  private readonly rate = new RequestRate(() => Date.now());
   private readonly incidents = new IncidentTracker({
     sql: this.ctx.storage.sql,
     errorRate: () => this.health.snapshot().errorRate,
@@ -60,7 +58,8 @@ export class RepoGateway extends DurableObject<Env> {
     this.health,
     {
       now: () => Date.now(),
-      fetch: (namespace, request) => this.fetchWithChaos(namespace, request),
+      fetch: (namespace, request) =>
+        this.chaos.wrap(namespace, () => fetchUpstream(namespace, request)),
       onTransition: (transition) => this.onTransition(transition),
     },
   );
@@ -69,22 +68,35 @@ export class RepoGateway extends DurableObject<Env> {
     this.counters,
     {
       now: () => Date.now(),
-      upstream: (namespace, request) => this.upstream.call(namespace, request),
+      upstream: (namespace, request) => this.callUpstream(namespace, request),
     },
   );
   private readonly writes = new WriteSide({
     sql: this.ctx.storage.sql,
     secret: this.env.QUEUE_ENCRYPTION_KEY,
     workflow: this.env.ReplayWorkflow,
-    upstream: (namespace, request) => this.upstream.call(namespace, request),
+    upstream: (namespace, request) => this.callUpstream(namespace, request),
     mode: () => this.upstream.mode(),
     target: () => this.route,
     record: (event) => this.note(event),
     waitUntil: (promise) => this.ctx.waitUntil(promise),
   });
   private route: GatewayRoute | null = null;
-  private readonly reporter = new TrailingThrottle(REPORT_INTERVAL_MS, () =>
-    this.reportToRegistry(),
+  private readonly reporter = new RepoReporter(
+    {
+      route: () => this.route,
+      health: () => this.getHealth(),
+      queueDepth: () => this.writes.queueDepth(),
+    },
+    {
+      now: () => Date.now(),
+      send: (snapshot) =>
+        this.ctx.waitUntil(
+          this.env.Registry.getByName(REGISTRY_NAME)
+            .report(snapshot)
+            .catch(() => undefined),
+        ),
+    },
   );
 
   async handle(request: Request, route: GatewayRoute): Promise<Response> {
@@ -137,6 +149,18 @@ export class RepoGateway extends DurableObject<Env> {
     );
   }
 
+  async getTimeline(namespace: Namespace): Promise<TimelineEntry[]> {
+    const chaos = await this.env.Registry.getByName(REGISTRY_NAME).chaosEvents(
+      namespace,
+      TIMELINE_LIMIT,
+    );
+    return buildTimeline({
+      events: this.events.recent(MAX_EVENTS_PER_CALL),
+      chaos,
+      incidents: this.incidents.list(MAX_INCIDENTS_PER_CALL),
+    });
+  }
+
   claimReplayBatch(): string[] {
     return this.writes.claimBatch();
   }
@@ -169,28 +193,23 @@ export class RepoGateway extends DurableObject<Env> {
     return this.writes.setPaused(target, paused);
   }
 
+  private async callUpstream(
+    namespace: Namespace,
+    request: Request,
+  ): Promise<UpstreamResult> {
+    const result = await this.upstream.call(namespace, request);
+    this.reporter.countUpstream(result.outcome);
+    return result;
+  }
+
   private dispatch(request: Request, route: GatewayRoute): Promise<Response> {
     if (request.method === "GET") return this.reads.read(request, route);
     return this.writes.handle(request, route);
   }
 
-  private async fetchWithChaos(
-    namespace: Namespace,
-    request: Request,
-  ): Promise<UpstreamResult> {
-    return applyChaos(
-      await this.chaos.get(namespace),
-      () => fetchUpstream(namespace, request),
-      {
-        random: Math.random,
-        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      },
-    );
-  }
-
   private record(event: GatewayEvent): void {
     this.counters.increment("requests");
-    this.rate.hit();
+    this.reporter.countRequest();
     if (event.cache === "HIT") this.counters.increment("hits");
     if (event.cache === "COALESCED") this.counters.increment("coalesced");
     this.log(event);
@@ -203,7 +222,7 @@ export class RepoGateway extends DurableObject<Env> {
   private log(event: GatewayEvent): void {
     this.events.record(event);
     this.incidents.observe(event);
-    this.reporter.trigger();
+    this.reporter.report();
   }
 
   private onTransition(transition: Transition): void {
@@ -218,27 +237,8 @@ export class RepoGateway extends DurableObject<Env> {
       detail: `${transition.from} -> ${transition.to} (${transition.reason})`,
     });
     this.incidents.onTransition(transition);
-    this.reportToRegistry();
+    this.reporter.reportNow();
     if (transition.to === "closed") this.writes.onRecovered();
-  }
-
-  private reportToRegistry(): void {
-    if (!this.route) return;
-    const registry = this.env.Registry.getByName(REGISTRY_NAME);
-    const { counters, lastEventAt } = this.getStats();
-    this.ctx.waitUntil(
-      registry
-        .report({
-          namespace: this.route.namespace,
-          repoKey: this.route.repoKey,
-          counters,
-          lastEventAt,
-          breaker: this.upstream.state().state,
-          recentRequests: this.rate.recent(),
-          queueDepth: this.writes.queueDepth(),
-        })
-        .catch(() => undefined),
-    );
   }
 }
 

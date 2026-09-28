@@ -2,6 +2,8 @@ import { env } from "cloudflare:test";
 import { expect, it } from "vitest";
 import { emptyCounters } from "../../src/gateway/counters";
 
+const HEALTHY = { upstreamHistory: [], errorRate: 0, p95LatencyMs: null };
+
 it("aggregates repo snapshots per namespace", async () => {
   const registry = env.Registry.getByName("test:registry");
   await registry.report({
@@ -18,6 +20,7 @@ it("aggregates repo snapshots per namespace", async () => {
     breaker: "closed",
     recentRequests: [],
     queueDepth: 0,
+    ...HEALTHY,
   });
   await registry.report({
     namespace: "demo",
@@ -32,6 +35,7 @@ it("aggregates repo snapshots per namespace", async () => {
     breaker: "open",
     recentRequests: [],
     queueDepth: 0,
+    ...HEALTHY,
   });
   await registry.report({
     namespace: "live",
@@ -41,6 +45,7 @@ it("aggregates repo snapshots per namespace", async () => {
     breaker: "closed",
     recentRequests: [],
     queueDepth: 0,
+    ...HEALTHY,
   });
 
   const overview = await registry.overview("demo");
@@ -84,12 +89,14 @@ it("sums requests from the last minute and queue depth", async () => {
       [nowSecond, 2],
     ],
     queueDepth: 3,
+    ...HEALTHY,
   });
   await registry.report({
     ...base,
     repoKey: "demo/web",
     recentRequests: [[nowSecond - 10, 4]],
     queueDepth: 1,
+    ...HEALTHY,
   });
 
   const overview = await registry.overview("demo");
@@ -113,6 +120,7 @@ it("replaces a repo's previous snapshot", async () => {
     breaker: "closed" as const,
     recentRequests: [],
     queueDepth: 0,
+    ...HEALTHY,
   };
   await registry.report(snapshot);
   await registry.report({
