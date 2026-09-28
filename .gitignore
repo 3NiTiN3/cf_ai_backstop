@@ -16,3 +16,5 @@ Thumbs.db
 *.tgz
 .cache/
 env.d.ts
+
+build/
