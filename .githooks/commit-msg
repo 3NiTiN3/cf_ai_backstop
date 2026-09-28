@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -u
+
+msg_file="$1"
+em_dash="$(printf '\xe2\x80\x94')"
+robot="$(printf '\xf0\x9f\xa4\x96')"
+tmp="$(mktemp)"
+
+grep -viE "^[[:space:]]*(co-authored-by:.*(claude|anthropic)|claude-session:)|generated (with|by) .*(claude|ai)|claude\.ai/code|claude\.com/claude-code|${robot}" "$msg_file" > "$tmp" || true
+
+awk '{ lines[NR] = $0 } END { n = NR; while (n > 0 && lines[n] ~ /^[[:space:]]*$/) n--; for (i = 1; i <= n; i++) print lines[i] }' "$tmp" > "$msg_file"
+rm -f "$tmp"
+
+subject="$(grep -vE '^#' "$msg_file" | grep -vE '^[[:space:]]*$' | head -n 1)"
+
+if [ -z "$subject" ]; then
+  echo "commit-msg: empty commit message" >&2
+  exit 1
+fi
+
+if grep -vE '^#' "$msg_file" | grep -q "$em_dash"; then
+  echo "commit-msg: em dash found in the message. Use a comma, colon or hyphen instead." >&2
+  exit 1
+fi
+
+if echo "$subject" | grep -qE '^(Merge|Revert|fixup!|squash!) '; then
+  exit 0
+fi
+
+if ! echo "$subject" | grep -qE '^(feat|fix|refactor|perf|test|docs|build|ci|chore|style)(\([a-z0-9-]+\))?!?: [^ ].*'; then
+  echo "commit-msg: subject must follow Conventional Commits, for example: feat(cache): add conditional revalidation" >&2
+  echo "  got: $subject" >&2
+  exit 1
+fi
+
+if [ "${#subject}" -gt 72 ]; then
+  echo "commit-msg: subject is ${#subject} characters, keep it at 72 or fewer" >&2
+  exit 1
+fi
+
+exit 0
