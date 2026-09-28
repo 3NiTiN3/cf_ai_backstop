@@ -2,7 +2,7 @@ import { cacheKey, type CacheEntry, type CacheStore } from "./cache";
 import { isCacheable, ttlFor } from "./cache-policy";
 import { Coalescer } from "./coalesce";
 import type { Counters } from "./counters";
-import { isHealthFailure } from "./health";
+import { isUnavailable } from "./health";
 import { fromCache, fromUpstream, stale, unavailable } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
 import { toUpstreamRequest, type UpstreamResult } from "./upstream";
@@ -68,7 +68,7 @@ export class ReadThroughCache {
     cached: CacheEntry | null,
   ): Promise<FetchOutcome> {
     const result = await this.fetch(request, route, cached);
-    if (isUnhealthy(result)) return this.fallback(result, cached);
+    if (isUnavailable(result.outcome)) return this.fallback(result, cached);
     if (cached && result.status === 304) {
       this.store.refresh(key, this.deps.now(), this.expiry(route));
       this.counters.increment("revalidated");
@@ -129,10 +129,6 @@ export class ReadThroughCache {
       ttlFor(route.upstreamPath, new URLSearchParams(route.search))
     );
   }
-}
-
-function isUnhealthy(result: UpstreamResult): boolean {
-  return result.outcome === "circuit_open" || isHealthFailure(result.outcome);
 }
 
 function retryAfterOf(result: UpstreamResult): number {

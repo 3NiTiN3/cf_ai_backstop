@@ -9,15 +9,13 @@ import { GuardedUpstream, type GatewayMode } from "./guarded-upstream";
 import { HealthWindow, type HealthSnapshot } from "./health";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
-import { MODE_HEADER, fromUpstream, writeNotQueueable } from "./responses";
+import { MODE_HEADER } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
 import { TrailingThrottle } from "./throttle";
-import {
-  fetchUpstream,
-  toUpstreamRequest,
-  type UpstreamResult,
-} from "./upstream";
-import { classifyWrite } from "./write-policy";
+import { fetchUpstream, type UpstreamResult } from "./upstream";
+import { WritePath } from "./write-path";
+import { WriteQueue } from "./write-queue";
+import { keyFromSecret, seal } from "../security/crypto";
 
 const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
@@ -59,6 +57,18 @@ export class RepoGateway extends DurableObject<Env> {
       upstream: (namespace, request) => this.upstream.call(namespace, request),
     },
   );
+  private readonly writes = new WritePath(
+    new WriteQueue(this.ctx.storage.sql),
+    {
+      now: () => Date.now(),
+      newId: () => crypto.randomUUID(),
+      mode: () => this.upstream.mode(),
+      upstream: (namespace, request) => this.upstream.call(namespace, request),
+      sealToken: async (authorization) =>
+        seal(await this.queueKey(), authorization),
+    },
+  );
+  private queueKeyPromise: Promise<CryptoKey> | null = null;
   private route: GatewayRoute | null = null;
   private readonly reporter = new TrailingThrottle(REPORT_INTERVAL_MS, () =>
     this.reportToRegistry(),
@@ -107,24 +117,14 @@ export class RepoGateway extends DurableObject<Env> {
     return this.events.recent(Number.isFinite(bounded) ? bounded : 1);
   }
 
-  private async dispatch(
-    request: Request,
-    route: GatewayRoute,
-  ): Promise<Response> {
+  private dispatch(request: Request, route: GatewayRoute): Promise<Response> {
     if (request.method === "GET") return this.reads.read(request, route);
-    if (this.upstream.mode() === "degraded") {
-      const write = classifyWrite(
-        request.method,
-        route.upstreamPath,
-        await request.clone().text(),
-      );
-      if (!write.queueable) return writeNotQueueable(write.reason);
-    }
-    const result = await this.upstream.call(
-      route.namespace,
-      toUpstreamRequest(request, route),
-    );
-    return fromUpstream(result, "BYPASS");
+    return this.writes.handle(request, route);
+  }
+
+  private queueKey(): Promise<CryptoKey> {
+    this.queueKeyPromise ??= keyFromSecret(this.env.QUEUE_ENCRYPTION_KEY);
+    return this.queueKeyPromise;
   }
 
   private async fetchWithChaos(

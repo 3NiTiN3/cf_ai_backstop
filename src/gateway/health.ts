@@ -31,6 +31,10 @@ export function isHealthFailure(outcome: UpstreamOutcome): boolean {
   return FAILURES.has(outcome);
 }
 
+export function isUnavailable(outcome: UpstreamOutcome): boolean {
+  return outcome === "circuit_open" || isHealthFailure(outcome);
+}
+
 export class HealthWindow {
   private buckets: Bucket[] = [];
   private consecutiveFailures = 0;

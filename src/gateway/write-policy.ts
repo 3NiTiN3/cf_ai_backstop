@@ -1,6 +1,5 @@
 export type WriteClass =
-  | { queueable: true }
-  | { queueable: false; reason: string };
+  { queueable: true } | { queueable: false; reason: string };
 
 interface QueueableWrite {
   pattern: RegExp;

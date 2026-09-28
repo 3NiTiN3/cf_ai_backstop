@@ -1,7 +1,8 @@
 import type { CacheEntry } from "./cache";
 import type { UpstreamResult } from "./upstream";
 
-export type CacheStatus = "HIT" | "MISS" | "REVALIDATED" | "STALE" | "BYPASS";
+export type CacheStatus =
+  "HIT" | "MISS" | "REVALIDATED" | "STALE" | "BYPASS" | "QUEUED";
 
 export const MODE_HEADER = "x-backstop-mode";
 const CACHE_HEADER = "x-backstop-cache";
@@ -46,6 +47,16 @@ export function writeNotQueueable(reason: string): Response {
     {
       status: 503,
       headers: { [CACHE_HEADER]: "BYPASS", [MODE_HEADER]: "degraded" },
+    },
+  );
+}
+
+export function queued(id: string, position: number, status: string) {
+  return Response.json(
+    { queued: true, id, position, status },
+    {
+      status: 202,
+      headers: { [CACHE_HEADER]: "QUEUED", "x-backstop-queued": id },
     },
   );
 }

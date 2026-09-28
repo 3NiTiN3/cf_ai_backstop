@@ -1,1 +1,2 @@
 ADMIN_TOKEN=replace-with-a-long-random-string
+QUEUE_ENCRYPTION_KEY=replace-with-another-long-random-string

@@ -6,7 +6,12 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: "./wrangler.jsonc" },
       remoteBindings: false,
-      miniflare: { bindings: { ADMIN_TOKEN: "test-admin-token" } },
+      miniflare: {
+        bindings: {
+          ADMIN_TOKEN: "test-admin-token",
+          QUEUE_ENCRYPTION_KEY: "test-queue-key",
+        },
+      },
     }),
   ],
   test: { testTimeout: 30_000 },

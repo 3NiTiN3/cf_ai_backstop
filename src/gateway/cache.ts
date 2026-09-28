@@ -104,7 +104,7 @@ export async function cacheKey(
   ]);
 }
 
-async function authScope(authorization: string | null): Promise<string> {
+export async function authScope(authorization: string | null): Promise<string> {
   if (!authorization) return PUBLIC_SCOPE;
   const token = authorization.replace(/^(bearer|token)\s+/i, "").trim();
   return (await sha256Hex(token)).slice(0, 16);

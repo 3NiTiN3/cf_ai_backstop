@@ -17,33 +17,34 @@ const queueable: [method: string, path: string, body?: string][] = [
   ["POST", `${REPO}/pulls/3/reviews`, '{"event":"COMMENT","body":"ok"}'],
 ];
 
-const rejected: [
-  method: string,
-  path: string,
-  body: string,
-  reason: RegExp,
-][] = [
-  ["PUT", `${REPO}/pulls/3/merge`, "{}", /Merging/],
-  ["POST", `${REPO}/pulls/3/merge`, "{}", /Merging/],
-  ["POST", `${REPO}/pulls/3/reviews`, '{"event":"APPROVE"}', /COMMENT/],
-  ["POST", `${REPO}/pulls/3/reviews`, '{"event":"REQUEST_CHANGES"}', /COMMENT/],
-  ["POST", `${REPO}/pulls/3/reviews`, '{"body":"draft"}', /COMMENT/],
-  ["POST", `${REPO}/pulls/3/reviews`, "not json", /COMMENT/],
-  ["POST", `${REPO}/pulls/3/reviews`, "null", /COMMENT/],
-  ["POST", `${REPO}/statuses/main`, "{}", /full commit SHA/],
-  ["POST", `${REPO}/statuses/abc1234`, "{}", /full commit SHA/],
-  ["PATCH", `${REPO}/issues/7`, "{}", /overwrite newer changes/],
-  ["DELETE", `${REPO}/issues/7/labels/bug`, "", /overwrite newer changes/],
-  ["PUT", `${REPO}/issues/7/labels`, "[]", /overwrite newer changes/],
-  ["POST", `${REPO}/issues/`, "{}", /not on the list/],
-  ["POST", `${REPO}/issues/0/comments`, "{}", /not on the list/],
-  ["POST", `${REPO}/issues/abc/comments`, "{}", /not on the list/],
-  ["POST", `${REPO}/issues/7/comments/extra`, "{}", /not on the list/],
-  ["POST", `${REPO}/pulls`, "{}", /not on the list/],
-  ["POST", `${REPO}/git/refs`, "{}", /not on the list/],
-  ["POST", "/repos/octo/issues", "{}", /not on the list/],
-  ["POST", "/user/repos", "{}", /not on the list/],
-];
+const rejected: [method: string, path: string, body: string, reason: RegExp][] =
+  [
+    ["PUT", `${REPO}/pulls/3/merge`, "{}", /Merging/],
+    ["POST", `${REPO}/pulls/3/merge`, "{}", /Merging/],
+    ["POST", `${REPO}/pulls/3/reviews`, '{"event":"APPROVE"}', /COMMENT/],
+    [
+      "POST",
+      `${REPO}/pulls/3/reviews`,
+      '{"event":"REQUEST_CHANGES"}',
+      /COMMENT/,
+    ],
+    ["POST", `${REPO}/pulls/3/reviews`, '{"body":"draft"}', /COMMENT/],
+    ["POST", `${REPO}/pulls/3/reviews`, "not json", /COMMENT/],
+    ["POST", `${REPO}/pulls/3/reviews`, "null", /COMMENT/],
+    ["POST", `${REPO}/statuses/main`, "{}", /full commit SHA/],
+    ["POST", `${REPO}/statuses/abc1234`, "{}", /full commit SHA/],
+    ["PATCH", `${REPO}/issues/7`, "{}", /overwrite newer changes/],
+    ["DELETE", `${REPO}/issues/7/labels/bug`, "", /overwrite newer changes/],
+    ["PUT", `${REPO}/issues/7/labels`, "[]", /overwrite newer changes/],
+    ["POST", `${REPO}/issues/`, "{}", /not on the list/],
+    ["POST", `${REPO}/issues/0/comments`, "{}", /not on the list/],
+    ["POST", `${REPO}/issues/abc/comments`, "{}", /not on the list/],
+    ["POST", `${REPO}/issues/7/comments/extra`, "{}", /not on the list/],
+    ["POST", `${REPO}/pulls`, "{}", /not on the list/],
+    ["POST", `${REPO}/git/refs`, "{}", /not on the list/],
+    ["POST", "/repos/octo/issues", "{}", /not on the list/],
+    ["POST", "/user/repos", "{}", /not on the list/],
+  ];
 
 describe("classifyWrite", () => {
   it.each(queueable)("queues %s %s", (method, path, body = "{}") => {
