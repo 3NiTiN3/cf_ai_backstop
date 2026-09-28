@@ -56,3 +56,35 @@ it("starts empty", async () => {
     expect(new EventLog(state.storage.sql).lastEventAt()).toBeNull();
   });
 });
+
+it("stores an optional detail", async () => {
+  const stub = env.RepoGateway.getByName("test:events-detail");
+  await runInDurableObject(stub, async (_instance, state) => {
+    const log = new EventLog(state.storage.sql);
+    const transition = { ...event(1), kind: "breaker", detail: "a -> b" };
+    log.record(transition);
+    log.record(event(2));
+    expect(log.recent(2)).toEqual([event(2), transition]);
+  });
+});
+
+it("adds the detail column to an existing events table", async () => {
+  const stub = env.RepoGateway.getByName("test:events-migrate");
+  await runInDurableObject(stub, async (_instance, state) => {
+    const { sql } = state.storage;
+    sql.exec("DROP TABLE IF EXISTS events");
+    sql.exec(`CREATE TABLE events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts INT NOT NULL, kind TEXT NOT NULL, method TEXT NOT NULL,
+      path TEXT NOT NULL, status INT NOT NULL, cache TEXT NOT NULL,
+      latency_ms INT NOT NULL
+    )`);
+    sql.exec(
+      `INSERT INTO events (ts, kind, method, path, status, cache, latency_ms)
+        VALUES (1, 'read', 'GET', '/', 200, 'HIT', 3)`,
+    );
+    const log = new EventLog(sql);
+    log.record({ ...event(2), detail: "x" });
+    expect(log.recent(2).map((e) => e.detail)).toEqual(["x", undefined]);
+  });
+});

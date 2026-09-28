@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { addColumnIfMissing } from "../shared/sql";
 
 export interface GatewayEvent {
   ts: number;
@@ -8,6 +9,7 @@ export interface GatewayEvent {
   status: number;
   cache: string;
   latencyMs: number;
+  detail?: string;
 }
 
 const MAX_EVENTS = 2000;
@@ -20,6 +22,7 @@ const EventRow = z.object({
   status: z.number(),
   cache: z.string(),
   latency_ms: z.number(),
+  detail: z.string().nullable(),
 });
 
 const InsertedId = z.object({ id: z.number() });
@@ -39,13 +42,15 @@ export class EventLog {
       cache TEXT NOT NULL,
       latency_ms INT NOT NULL
     )`);
+    addColumnIfMissing(sql, "events", "detail", "TEXT");
   }
 
   record(event: GatewayEvent): void {
     const inserted = this.sql
       .exec(
-        `INSERT INTO events (ts, kind, method, path, status, cache, latency_ms)
-          VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        `INSERT INTO events
+          (ts, kind, method, path, status, cache, latency_ms, detail)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         event.ts,
         event.kind,
         event.method,
@@ -53,6 +58,7 @@ export class EventLog {
         event.status,
         event.cache,
         event.latencyMs,
+        event.detail ?? null,
       )
       .one();
     const { id } = InsertedId.parse(inserted);
@@ -62,13 +68,17 @@ export class EventLog {
   recent(limit: number): GatewayEvent[] {
     return this.sql
       .exec(
-        "SELECT ts, kind, method, path, status, cache, latency_ms FROM events ORDER BY id DESC LIMIT ?",
+        "SELECT ts, kind, method, path, status, cache, latency_ms, detail FROM events ORDER BY id DESC LIMIT ?",
         limit,
       )
       .toArray()
       .map((row) => {
-        const { latency_ms, ...rest } = EventRow.parse(row);
-        return { ...rest, latencyMs: latency_ms };
+        const { latency_ms, detail, ...rest } = EventRow.parse(row);
+        return {
+          ...rest,
+          latencyMs: latency_ms,
+          ...(detail === null ? {} : { detail }),
+        };
       });
   }
 

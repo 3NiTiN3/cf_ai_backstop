@@ -1,5 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
+import { addColumnIfMissing } from "../shared/sql";
+import { BREAKER_STATES, type BreakerState } from "./breaker";
 import { COUNTER_NAMES, emptyCounters, type CounterTotals } from "./counters";
 import type { Namespace } from "./routes";
 
@@ -10,10 +12,12 @@ export interface RepoSnapshot {
   repoKey: string;
   counters: CounterTotals;
   lastEventAt: number | null;
+  breaker: BreakerState;
 }
 
 export interface RepoSummary extends CounterTotals {
   repoKey: string;
+  breaker: BreakerState;
   lastEventAt: number | null;
   reportedAt: number;
 }
@@ -33,6 +37,7 @@ const RepoRow = z.object({
   counters: z.string(),
   last_event_at: z.number().nullable(),
   reported_at: z.number(),
+  breaker: z.enum(BREAKER_STATES),
 });
 
 export class Registry extends DurableObject<Env> {
@@ -48,18 +53,25 @@ export class Registry extends DurableObject<Env> {
       reported_at INT NOT NULL,
       PRIMARY KEY (namespace, repo_key)
     )`);
+    addColumnIfMissing(
+      this.sql,
+      "repos",
+      "breaker",
+      "TEXT NOT NULL DEFAULT 'closed'",
+    );
   }
 
   report(snapshot: RepoSnapshot): void {
     this.sql.exec(
       `INSERT OR REPLACE INTO repos
-        (namespace, repo_key, counters, last_event_at, reported_at)
-        VALUES (?, ?, ?, ?, ?)`,
+        (namespace, repo_key, counters, last_event_at, reported_at, breaker)
+        VALUES (?, ?, ?, ?, ?, ?)`,
       snapshot.namespace,
       snapshot.repoKey,
       JSON.stringify(snapshot.counters),
       snapshot.lastEventAt,
       Date.now(),
+      snapshot.breaker,
     );
   }
 
@@ -79,6 +91,7 @@ function toSummary(row: z.infer<typeof RepoRow>): RepoSummary {
     ...emptyCounters(),
     ...counters,
     repoKey: row.repo_key,
+    breaker: row.breaker,
     lastEventAt: row.last_event_at,
     reportedAt: row.reported_at,
   };

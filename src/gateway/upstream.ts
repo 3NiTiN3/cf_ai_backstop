@@ -7,7 +7,8 @@ export type UpstreamOutcome =
   | "server_error"
   | "rate_limited"
   | "timeout"
-  | "network_error";
+  | "network_error"
+  | "circuit_open";
 
 export interface UpstreamResult {
   status: number;

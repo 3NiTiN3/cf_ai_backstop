@@ -48,6 +48,11 @@ export class HealthWindow {
     }
   }
 
+  reset(): void {
+    this.buckets = [];
+    this.consecutiveFailures = 0;
+  }
+
   snapshot(): HealthSnapshot {
     const live = this.liveBuckets();
     const requestCount = sum(live.map((bucket) => bucket.requests));

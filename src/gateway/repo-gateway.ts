@@ -1,18 +1,17 @@
 import { DurableObject } from "cloudflare:workers";
+import type { Transition } from "./breaker";
+import { BreakerStore } from "./breaker-store";
 import { CacheStore } from "./cache";
 import { Counters, type CounterTotals } from "./counters";
 import { EventLog, type GatewayEvent } from "./events";
+import { GuardedUpstream } from "./guarded-upstream";
 import { HealthWindow } from "./health";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
 import { fromUpstream } from "./responses";
-import type { GatewayRoute, Namespace } from "./routes";
+import type { GatewayRoute } from "./routes";
 import { TrailingThrottle } from "./throttle";
-import {
-  fetchUpstream,
-  toUpstreamRequest,
-  type UpstreamResult,
-} from "./upstream";
+import { fetchUpstream, toUpstreamRequest } from "./upstream";
 
 const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
@@ -25,13 +24,21 @@ export interface RepoStats {
 export class RepoGateway extends DurableObject<Env> {
   private readonly counters = new Counters(this.ctx.storage.sql);
   private readonly events = new EventLog(this.ctx.storage.sql);
-  private readonly health = new HealthWindow(() => Date.now());
+  private readonly upstream = new GuardedUpstream(
+    new BreakerStore(this.ctx.storage.sql),
+    new HealthWindow(() => Date.now()),
+    {
+      now: () => Date.now(),
+      fetch: (namespace, request) => fetchUpstream(namespace, request),
+      onTransition: (transition) => this.onTransition(transition),
+    },
+  );
   private readonly reads = new ReadThroughCache(
     new CacheStore(this.ctx.storage.sql),
     this.counters,
     {
       now: () => Date.now(),
-      upstream: (ns, req) => this.callUpstream(ns, req),
+      upstream: (namespace, request) => this.upstream.call(namespace, request),
     },
   );
   private route: GatewayRoute | null = null;
@@ -43,6 +50,7 @@ export class RepoGateway extends DurableObject<Env> {
     this.route = route;
     const started = Date.now();
     const response = await this.dispatch(request, route);
+    response.headers.set("x-backstop-mode", this.upstream.mode());
     this.record({
       ts: started,
       kind: request.method === "GET" ? "read" : "write",
@@ -75,20 +83,11 @@ export class RepoGateway extends DurableObject<Env> {
     route: GatewayRoute,
   ): Promise<Response> {
     if (request.method === "GET") return this.reads.read(request, route);
-    const result = await this.callUpstream(
+    const result = await this.upstream.call(
       route.namespace,
       toUpstreamRequest(request, route),
     );
     return fromUpstream(result, "BYPASS");
-  }
-
-  private async callUpstream(
-    namespace: Namespace,
-    request: Request,
-  ): Promise<UpstreamResult> {
-    const result = await fetchUpstream(namespace, request);
-    this.health.record(result.outcome, result.latencyMs);
-    return result;
   }
 
   private record(event: GatewayEvent): void {
@@ -97,6 +96,20 @@ export class RepoGateway extends DurableObject<Env> {
     if (event.cache === "COALESCED") this.counters.increment("coalesced");
     this.events.record(event);
     this.reporter.trigger();
+  }
+
+  private onTransition(transition: Transition): void {
+    this.events.record({
+      ts: transition.at,
+      kind: "breaker",
+      method: "",
+      path: "",
+      status: 0,
+      cache: "NONE",
+      latencyMs: 0,
+      detail: `${transition.from} -> ${transition.to} (${transition.reason})`,
+    });
+    this.reportToRegistry();
   }
 
   private reportToRegistry(): void {
@@ -110,6 +123,7 @@ export class RepoGateway extends DurableObject<Env> {
           repoKey: this.route.repoKey,
           counters,
           lastEventAt,
+          breaker: this.upstream.state().state,
         })
         .catch(() => undefined),
     );

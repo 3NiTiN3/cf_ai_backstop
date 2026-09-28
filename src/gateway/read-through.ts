@@ -63,16 +63,19 @@ export class ReadThroughCache {
     return { result, revalidated: null };
   }
 
-  private fetch(
+  private async fetch(
     request: Request,
     route: GatewayRoute,
     cached: CacheEntry | null,
   ): Promise<UpstreamResult> {
-    this.counters.increment("upstream_calls");
-    return this.deps.upstream(
+    const result = await this.deps.upstream(
       route.namespace,
       toUpstreamRequest(request, route, validators(cached)),
     );
+    if (result.outcome !== "circuit_open") {
+      this.counters.increment("upstream_calls");
+    }
+    return result;
   }
 
   private storeIfCacheable(

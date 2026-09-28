@@ -15,6 +15,7 @@ it("aggregates repo snapshots per namespace", async () => {
       upstream_avoided: 7,
     },
     lastEventAt: 100,
+    breaker: "closed",
   });
   await registry.report({
     namespace: "demo",
@@ -26,12 +27,14 @@ it("aggregates repo snapshots per namespace", async () => {
       upstream_avoided: 9,
     },
     lastEventAt: 200,
+    breaker: "open",
   });
   await registry.report({
     namespace: "live",
     repoKey: "cloudflare/workers-sdk",
     counters: { ...emptyCounters(), requests: 5 },
     lastEventAt: 300,
+    breaker: "closed",
   });
 
   const overview = await registry.overview("demo");
@@ -40,6 +43,7 @@ it("aggregates repo snapshots per namespace", async () => {
     "demo/web",
     "demo/api",
   ]);
+  expect(overview.repos[0]?.breaker).toBe("open");
   expect(overview.repos[1]).toMatchObject({
     repoKey: "demo/api",
     requests: 10,
@@ -61,14 +65,17 @@ it("replaces a repo's previous snapshot", async () => {
     repoKey: "demo/api",
     counters: { ...emptyCounters(), requests: 1 },
     lastEventAt: 1,
+    breaker: "closed" as const,
   };
   await registry.report(snapshot);
   await registry.report({
     ...snapshot,
     counters: { ...emptyCounters(), requests: 4 },
+    breaker: "half_open",
   });
   const overview = await registry.overview("demo");
   expect(overview.repos).toHaveLength(1);
+  expect(overview.repos[0]?.breaker).toBe("half_open");
   expect(overview.totals.requests).toBe(4);
   expect(overview.totals.avoidedRatio).toBe(0);
 });
