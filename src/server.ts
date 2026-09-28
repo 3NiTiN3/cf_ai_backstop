@@ -8,6 +8,7 @@ import { jsonError } from "./gateway/responses";
 
 export { RepoGateway } from "./gateway/repo-gateway";
 export { Registry } from "./gateway/registry";
+export { ReplayWorkflow } from "./workflows/replay";
 
 export class OpsAgent extends AIChatAgent<Env> {
   override maxPersistedMessages = 100;

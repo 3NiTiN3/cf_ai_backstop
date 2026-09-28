@@ -13,9 +13,14 @@ import { MODE_HEADER } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
 import { TrailingThrottle } from "./throttle";
 import { fetchUpstream, type UpstreamResult } from "./upstream";
+import {
+  QueueReplayer,
+  type SendOutcome,
+  type SettleDecision,
+} from "./replay-sender";
 import { WritePath } from "./write-path";
-import { WriteQueue } from "./write-queue";
-import { keyFromSecret, seal } from "../security/crypto";
+import { WriteQueue, type QueuedWrite } from "./write-queue";
+import { keyFromSecret, seal, unseal } from "../security/crypto";
 
 const REPORT_INTERVAL_MS = 2000;
 const MAX_EVENTS_PER_CALL = 500;
@@ -57,17 +62,21 @@ export class RepoGateway extends DurableObject<Env> {
       upstream: (namespace, request) => this.upstream.call(namespace, request),
     },
   );
-  private readonly writes = new WritePath(
-    new WriteQueue(this.ctx.storage.sql),
-    {
-      now: () => Date.now(),
-      newId: () => crypto.randomUUID(),
-      mode: () => this.upstream.mode(),
-      upstream: (namespace, request) => this.upstream.call(namespace, request),
-      sealToken: async (authorization) =>
-        seal(await this.queueKey(), authorization),
-    },
-  );
+  private readonly queue = new WriteQueue(this.ctx.storage.sql);
+  private readonly writes = new WritePath(this.queue, {
+    now: () => Date.now(),
+    newId: () => crypto.randomUUID(),
+    mode: () => this.upstream.mode(),
+    upstream: (namespace, request) => this.upstream.call(namespace, request),
+    sealToken: async (authorization) =>
+      seal(await this.queueKey(), authorization),
+  });
+  private readonly replayer = new QueueReplayer(this.queue, {
+    now: () => Date.now(),
+    upstream: (namespace, request) => this.upstream.call(namespace, request),
+    unsealToken: async (sealed) => unseal(await this.queueKey(), sealed),
+    onSent: (write, result) => this.recordReplay(write, result),
+  });
   private queueKeyPromise: Promise<CryptoKey> | null = null;
   private route: GatewayRoute | null = null;
   private readonly reporter = new TrailingThrottle(REPORT_INTERVAL_MS, () =>
@@ -117,6 +126,18 @@ export class RepoGateway extends DurableObject<Env> {
     return this.events.recent(Number.isFinite(bounded) ? bounded : 1);
   }
 
+  claimReplayBatch(): string[] {
+    return this.replayer.claimBatch();
+  }
+
+  sendQueuedWrite(namespace: Namespace, id: string): Promise<SendOutcome> {
+    return this.replayer.send(namespace, id);
+  }
+
+  settleQueuedWrite(id: string): SettleDecision {
+    return this.replayer.settle(id);
+  }
+
   private dispatch(request: Request, route: GatewayRoute): Promise<Response> {
     if (request.method === "GET") return this.reads.read(request, route);
     return this.writes.handle(request, route);
@@ -146,6 +167,20 @@ export class RepoGateway extends DurableObject<Env> {
     if (event.cache === "HIT") this.counters.increment("hits");
     if (event.cache === "COALESCED") this.counters.increment("coalesced");
     this.events.record(event);
+    this.reporter.trigger();
+  }
+
+  private recordReplay(write: QueuedWrite, result: UpstreamResult): void {
+    this.events.record({
+      ts: Date.now(),
+      kind: "replay",
+      method: write.method,
+      path: write.path,
+      status: result.status,
+      cache: "QUEUED",
+      latencyMs: result.latencyMs,
+      detail: write.id,
+    });
     this.reporter.trigger();
   }
 

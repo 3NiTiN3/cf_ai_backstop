@@ -58,6 +58,8 @@ const TokenRow = z.object({
 
 const Count = z.object({ count: z.number() });
 
+const ClaimedRow = z.object({ id: z.string(), seq: z.number() });
+
 const WRITE_COLUMNS =
   "id, seq, idempotency_key, method, path, body, status, attempts, last_error, result_status, created_at, updated_at";
 
@@ -112,6 +114,62 @@ export class WriteQueue {
     );
   }
 
+  get(id: string): QueuedWrite | null {
+    return this.one(
+      `SELECT ${WRITE_COLUMNS} FROM write_queue WHERE id = ?`,
+      id,
+    );
+  }
+
+  // In-flight rows can only be left over from a replay run that died, because
+  // one run at a time owns the queue, so they are claimed again in order.
+  claim(limit: number, now: number): string[] {
+    return this.sql
+      .exec(
+        `UPDATE write_queue SET status = 'in_flight', updated_at = ?
+          WHERE id IN (SELECT id FROM write_queue WHERE ${WAITING} ORDER BY seq LIMIT ?)
+          RETURNING id, seq`,
+        now,
+        limit,
+      )
+      .toArray()
+      .map((row) => ClaimedRow.parse(row))
+      .sort((a, b) => a.seq - b.seq)
+      .map((row) => row.id);
+  }
+
+  releaseInFlight(now: number): void {
+    this.sql.exec(
+      "UPDATE write_queue SET status = 'pending', updated_at = ? WHERE status = 'in_flight'",
+      now,
+    );
+  }
+
+  noteAttempt(id: string, error: string, now: number): void {
+    this.sql.exec(
+      "UPDATE write_queue SET attempts = attempts + 1, last_error = ?, updated_at = ? WHERE id = ?",
+      error,
+      now,
+      id,
+    );
+  }
+
+  markFailed(
+    id: string,
+    resultStatus: number | null,
+    error: string,
+    now: number,
+  ): void {
+    this.sql.exec(
+      `UPDATE write_queue SET status = 'failed', attempts = attempts + 1,
+        result_status = ?, last_error = ?, updated_at = ? WHERE id = ?`,
+      resultStatus,
+      error,
+      now,
+      id,
+    );
+  }
+
   position(write: QueuedWrite): number {
     if (write.status !== "pending" && write.status !== "in_flight") return 0;
     const row = this.sql
@@ -145,7 +203,8 @@ export class WriteQueue {
 
   markDone(id: string, resultStatus: number, now: number): void {
     this.sql.exec(
-      `UPDATE write_queue SET status = 'done', result_status = ?, last_error = NULL,
+      `UPDATE write_queue SET status = 'done', attempts = attempts + 1,
+        result_status = ?, last_error = NULL,
         token_ciphertext = NULL, token_iv = NULL, updated_at = ? WHERE id = ?`,
       resultStatus,
       now,

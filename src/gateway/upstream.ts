@@ -52,15 +52,29 @@ export function toUpstreamRequest(
   route: GatewayRoute,
   extraHeaders: Record<string, string> = {},
 ): Request {
-  const headers = new Headers({ "user-agent": USER_AGENT, ...extraHeaders });
+  const headers: Record<string, string> = { ...extraHeaders };
   for (const name of FORWARDED_HEADERS) {
     const value = request.headers.get(name);
-    if (value !== null) headers.set(name, value);
+    if (value !== null) headers[name] = value;
   }
-  return new Request(`${GITHUB_ORIGIN}${route.upstreamPath}${route.search}`, {
-    method: request.method,
+  return githubRequest(
+    request.method,
+    `${route.upstreamPath}${route.search}`,
     headers,
-    body: request.body,
+    request.body,
+  );
+}
+
+export function githubRequest(
+  method: string,
+  pathWithQuery: string,
+  headers: Record<string, string>,
+  body: BodyInit | null,
+): Request {
+  return new Request(`${GITHUB_ORIGIN}${pathWithQuery}`, {
+    method,
+    headers: { "user-agent": USER_AGENT, ...headers },
+    body,
   });
 }
 

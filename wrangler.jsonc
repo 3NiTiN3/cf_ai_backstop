@@ -34,6 +34,13 @@
       },
     ],
   },
+  "workflows": [
+    {
+      "name": "backstop-replay",
+      "binding": "ReplayWorkflow",
+      "class_name": "ReplayWorkflow",
+    },
+  ],
   "migrations": [
     {
       "new_sqlite_classes": ["OpsAgent"],
