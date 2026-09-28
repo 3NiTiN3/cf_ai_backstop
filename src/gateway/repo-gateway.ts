@@ -8,7 +8,7 @@ import { GuardedUpstream } from "./guarded-upstream";
 import { HealthWindow } from "./health";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
-import { fromUpstream } from "./responses";
+import { MODE_HEADER, fromUpstream } from "./responses";
 import type { GatewayRoute } from "./routes";
 import { TrailingThrottle } from "./throttle";
 import { fetchUpstream, toUpstreamRequest } from "./upstream";
@@ -50,7 +50,9 @@ export class RepoGateway extends DurableObject<Env> {
     this.route = route;
     const started = Date.now();
     const response = await this.dispatch(request, route);
-    response.headers.set("x-backstop-mode", this.upstream.mode());
+    if (!response.headers.has(MODE_HEADER)) {
+      response.headers.set(MODE_HEADER, this.upstream.mode());
+    }
     this.record({
       ts: started,
       kind: request.method === "GET" ? "read" : "write",

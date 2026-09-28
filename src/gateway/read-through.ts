@@ -2,7 +2,8 @@ import { cacheKey, type CacheEntry, type CacheStore } from "./cache";
 import { isCacheable, ttlFor } from "./cache-policy";
 import { Coalescer } from "./coalesce";
 import type { Counters } from "./counters";
-import { fromCache, fromUpstream } from "./responses";
+import { isHealthFailure } from "./health";
+import { fromCache, fromUpstream, stale, unavailable } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
 import { toUpstreamRequest, type UpstreamResult } from "./upstream";
 
@@ -11,10 +12,13 @@ export interface ReadDeps {
   upstream: (namespace: Namespace, request: Request) => Promise<UpstreamResult>;
 }
 
-interface FetchOutcome {
-  result: UpstreamResult;
-  revalidated: CacheEntry | null;
-}
+type FetchOutcome =
+  | { kind: "fresh"; result: UpstreamResult }
+  | { kind: "revalidated"; entry: CacheEntry }
+  | { kind: "stale"; entry: CacheEntry }
+  | { kind: "unavailable"; retryAfterSeconds: number };
+
+const DEFAULT_RETRY_AFTER_SECONDS = 5;
 
 export class ReadThroughCache {
   private readonly coalescer = new Coalescer<FetchOutcome>();
@@ -36,15 +40,25 @@ export class ReadThroughCache {
     const { promise, shared } = this.coalescer.run(key, () =>
       this.refetch(key, request, route, cached),
     );
-    const outcome = await promise;
-    const response = outcome.revalidated
-      ? fromCache(outcome.revalidated, "REVALIDATED")
-      : fromUpstream(outcome.result, "MISS");
+    const response = this.toResponse(await promise);
     if (shared) {
       this.counters.increment("upstream_avoided");
       response.headers.set("x-backstop-coalesced", "1");
     }
     return response;
+  }
+
+  private toResponse(outcome: FetchOutcome): Response {
+    switch (outcome.kind) {
+      case "fresh":
+        return fromUpstream(outcome.result, "MISS");
+      case "revalidated":
+        return fromCache(outcome.entry, "REVALIDATED");
+      case "stale":
+        return stale(outcome.entry, this.deps.now());
+      case "unavailable":
+        return unavailable(outcome.retryAfterSeconds);
+    }
   }
 
   private async refetch(
@@ -54,13 +68,25 @@ export class ReadThroughCache {
     cached: CacheEntry | null,
   ): Promise<FetchOutcome> {
     const result = await this.fetch(request, route, cached);
+    if (isUnhealthy(result)) return this.fallback(result, cached);
     if (cached && result.status === 304) {
       this.store.refresh(key, this.deps.now(), this.expiry(route));
       this.counters.increment("revalidated");
-      return { result, revalidated: cached };
+      return { kind: "revalidated", entry: cached };
     }
     this.storeIfCacheable(key, request.method, route, result);
-    return { result, revalidated: null };
+    return { kind: "fresh", result };
+  }
+
+  private fallback(
+    result: UpstreamResult,
+    cached: CacheEntry | null,
+  ): FetchOutcome {
+    if (result.outcome === "circuit_open") {
+      this.counters.increment("upstream_avoided");
+    }
+    if (cached) return { kind: "stale", entry: cached };
+    return { kind: "unavailable", retryAfterSeconds: retryAfterOf(result) };
   }
 
   private async fetch(
@@ -103,6 +129,17 @@ export class ReadThroughCache {
       ttlFor(route.upstreamPath, new URLSearchParams(route.search))
     );
   }
+}
+
+function isUnhealthy(result: UpstreamResult): boolean {
+  return result.outcome === "circuit_open" || isHealthFailure(result.outcome);
+}
+
+function retryAfterOf(result: UpstreamResult): number {
+  const seconds = Number(result.headers["retry-after"]);
+  return Number.isInteger(seconds) && seconds > 0
+    ? seconds
+    : DEFAULT_RETRY_AFTER_SECONDS;
 }
 
 function validators(entry: CacheEntry | null): Record<string, string> {

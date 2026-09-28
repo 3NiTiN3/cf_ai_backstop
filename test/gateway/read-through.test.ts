@@ -81,24 +81,19 @@ describe("ReadThroughCache", () => {
       expect(rows()).toHaveLength(0);
     }));
 
-  it("turns unreachable upstreams into JSON errors", () =>
+  it("answers unreachable upstreams with 503 and caches nothing", () =>
     withHarness(async ({ get, upstream, rows }) => {
-      upstream.respond = () =>
-        okResult("", { status: 504, outcome: "timeout" });
-      const timeout = await get("/gh/repos/a/b");
-      expect(timeout.status).toBe(504);
-      expect(await timeout.json()).toEqual({
-        message: "GitHub did not respond in time",
-      });
-
-      upstream.respond = () =>
-        okResult("", { status: 502, outcome: "network_error" });
-      const network = await get("/gh/repos/a/b");
-      expect(network.status).toBe(502);
-      expect(network.headers.get("x-backstop-cache")).toBe("MISS");
-      expect(await network.json()).toEqual({
-        message: "Could not reach GitHub",
-      });
+      for (const outcome of ["timeout", "network_error"] as const) {
+        upstream.respond = () => okResult("", { status: 504, outcome });
+        const response = await get("/gh/repos/a/b");
+        expect(response.status).toBe(503);
+        expect(response.headers.get("x-backstop-cache")).toBe("MISS");
+        expect(response.headers.get("retry-after")).toBe("5");
+        expect(await response.json()).toEqual({
+          error: "upstream_unavailable",
+          retryAfterSeconds: 5,
+        });
+      }
       expect(rows()).toHaveLength(0);
     }));
 });

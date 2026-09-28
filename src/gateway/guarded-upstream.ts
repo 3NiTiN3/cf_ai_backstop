@@ -10,6 +10,7 @@ import {
 import type { BreakerStore } from "./breaker-store";
 import type { HealthWindow } from "./health";
 import { signalOf } from "./rate-limit";
+import { unavailableBody } from "./responses";
 import type { Namespace } from "./routes";
 import type { UpstreamResult } from "./upstream";
 
@@ -78,10 +79,7 @@ function shortCircuit(retryAfter: number): UpstreamResult {
       "content-type": "application/json",
       "retry-after": String(retryAfter),
     },
-    body: JSON.stringify({
-      error: "upstream_unavailable",
-      retryAfterSeconds: retryAfter,
-    }),
+    body: unavailableBody(retryAfter),
     etag: null,
     lastModified: null,
     latencyMs: 0,
