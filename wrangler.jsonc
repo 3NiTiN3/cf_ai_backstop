@@ -20,6 +20,28 @@
       "/demo/gh/*",
     ],
   },
+  "ratelimits": [
+    {
+      "name": "DEMO_GATEWAY_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 600, "period": 10 },
+    },
+    {
+      "name": "DEMO_ACTIONS_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 30, "period": 60 },
+    },
+    {
+      "name": "MCP_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 120, "period": 60 },
+    },
+    {
+      "name": "CHAT_LIMITER",
+      "namespace_id": "1004",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
   "durable_objects": {
     "bindings": [
       {

@@ -13,6 +13,7 @@ export interface Summary {
   stale: number;
   queued: number;
   upstreamCalls: number;
+  rateLimited: number;
   failed: number;
   avoidedPercent: number;
   p50Ms: number | null;
@@ -31,10 +32,12 @@ export function summarize(samples: Sample[]): Summary {
   const failed = count(
     (sample) => sample.status >= 500 && !servedFromGateway(sample),
   );
+  const rateLimited = count((sample) => sample.status === 429);
   const upstreamCalls = count(
     (sample) =>
       !sample.coalesced &&
       sample.status < 500 &&
+      sample.status !== 429 &&
       (sample.cache === null || UPSTREAM.has(sample.cache)),
   );
   const avoided = hits + coalesced + stale;
@@ -51,6 +54,7 @@ export function summarize(samples: Sample[]): Summary {
     stale,
     queued,
     upstreamCalls,
+    rateLimited,
     failed,
     avoidedPercent:
       avoided + upstreamCalls === 0
@@ -70,6 +74,7 @@ export function formatSummary(summary: Summary): string {
     ["Served stale", String(summary.stale)],
     ["Queued writes", String(summary.queued)],
     ["Upstream calls", String(summary.upstreamCalls)],
+    ["Rate limited", String(summary.rateLimited)],
     ["Failed", String(summary.failed)],
     ["Upstream calls avoided", `${summary.avoidedPercent}%`],
     ["Gateway latency p50", milliseconds(summary.p50Ms)],

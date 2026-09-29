@@ -1,4 +1,8 @@
-import type { UIMessage, UIMessageChunk } from "ai";
+import {
+  createUIMessageStreamResponse,
+  type UIMessage,
+  type UIMessageChunk,
+} from "ai";
 import { z } from "zod";
 
 const NoticeMetadata = z.object({ notice: z.literal(true) });
@@ -12,6 +16,26 @@ export function noticeText(message: Pick<UIMessage, "parts">): string {
     .map((part) => (part.type === "text" ? part.text : ""))
     .join("")
     .trim();
+}
+
+export function noticeResponse(text: string): Response {
+  const id = "notice-1";
+  const chunks: UIMessageChunk[] = [
+    { type: "start" },
+    { type: "message-metadata", messageMetadata: { notice: true } },
+    { type: "text-start", id },
+    { type: "text-delta", id, delta: text },
+    { type: "text-end", id },
+    { type: "finish" },
+  ];
+  return createUIMessageStreamResponse({
+    stream: new ReadableStream<UIMessageChunk>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    }),
+  });
 }
 
 // The agent SDK relays error chunks as plain-text frames that other open tabs

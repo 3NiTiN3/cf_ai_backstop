@@ -8,9 +8,9 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
-import { chatErrorMessage } from "./agent/errors";
+import { BUSY_MESSAGE, chatErrorMessage } from "./agent/errors";
 import { chatModel } from "./agent/model";
-import { errorsAsNotices, isNotice } from "./agent/notices";
+import { errorsAsNotices, isNotice, noticeResponse } from "./agent/notices";
 import { buildSystemPrompt } from "./agent/prompt";
 import { answerAfterTools } from "./agent/steps";
 import { INITIAL_OPS_STATE, readOpsState, type OpsState } from "./agent/state";
@@ -20,6 +20,7 @@ import { handleApiRequest } from "./api/handler";
 import { handleGatewayRequest } from "./gateway/handler";
 import { handleMcpRequest } from "./mcp/handler";
 import { isCrossSite } from "./security/origin";
+import { limitRequest } from "./security/request-limits";
 import { jsonError } from "./gateway/responses";
 
 export { RepoGateway } from "./gateway/repo-gateway";
@@ -37,6 +38,9 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
     _onFinish: unknown,
     options?: OnChatMessageOptions,
   ) {
+    // One shared limit, because every visitor shares this chat and its Workers AI budget.
+    const { success } = await this.env.CHAT_LIMITER.limit({ key: "ops-chat" });
+    if (!success) return noticeResponse(BUSY_MESSAGE);
     const state = readOpsState(this.state);
     const namespace = requestedNamespace(options?.body) ?? state.namespace;
     const result = streamText({
@@ -89,6 +93,7 @@ function crossSiteAgent(request: Request): Response | null {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return (
+      (await limitRequest(request, env)) ??
       (await handleGatewayRequest(request, env)) ??
       (await handleMcpRequest(request, env, ctx)) ??
       (await handleApiRequest(request, env)) ??

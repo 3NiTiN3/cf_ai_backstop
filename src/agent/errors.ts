@@ -3,6 +3,9 @@ const QUOTA_PATTERN = /\b4006\b|daily free allocation/i;
 export const QUOTA_MESSAGE =
   "The Workers AI daily allowance for this demo is used up, so the chat cannot answer right now. It resets at 00:00 UTC. The dashboard keeps working.";
 
+export const BUSY_MESSAGE =
+  "The chat is taking a lot of questions right now. Please wait a minute and ask again.";
+
 export const GENERIC_MESSAGE =
   "The model did not answer. Please try again in a moment.";
 

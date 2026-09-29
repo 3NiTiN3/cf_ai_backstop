@@ -26,18 +26,20 @@ it("classifies gateway responses and counts calls avoided", () => {
     sample({ status: 202, cache: "QUEUED", latencyMs: 12 }),
     sample({ status: 503, cache: null, latencyMs: 2 }),
     sample({ status: 201, cache: null, latencyMs: 90 }),
+    sample({ status: 429, cache: null, latencyMs: 1 }),
   ]);
   expect(summary).toEqual({
-    requests: 9,
+    requests: 10,
     hits: 2,
     revalidated: 1,
     coalesced: 1,
     stale: 1,
     queued: 1,
     upstreamCalls: 3,
+    rateLimited: 1,
     failed: 1,
     avoidedPercent: 57.1,
-    p50Ms: 12,
+    p50Ms: 8,
     p95Ms: 120,
   });
 });
