@@ -29,24 +29,29 @@ function event(overrides: Partial<GatewayEvent>): GatewayEvent {
 }
 
 const stale = event({ cache: "STALE" });
-const queued = event({
-  kind: "write",
-  method: "POST",
-  status: 202,
-  cache: "QUEUED",
-});
-const replayed = event({
-  kind: "replay",
-  method: "POST",
-  status: 201,
-  cache: "QUEUED",
-});
-const rejected = event({
-  kind: "replay",
-  method: "POST",
-  status: 422,
-  cache: "QUEUED",
-});
+function queued(id: string): GatewayEvent {
+  return event({
+    kind: "write",
+    method: "POST",
+    status: 202,
+    cache: "QUEUED",
+    detail: id,
+  });
+}
+
+function replayed(id: string, status = 201): GatewayEvent {
+  return event({
+    kind: "replay",
+    method: "POST",
+    status,
+    cache: "QUEUED",
+    detail: id,
+  });
+}
+
+function waiting(...ids: string[]): () => string[] {
+  return () => ids;
+}
 
 function transition(to: Transition["to"], at: number): Transition {
   return { from: "closed", to, reason: "error_rate", at };
@@ -61,7 +66,7 @@ describe("IncidentLog", () => {
       log.open(2_000, 0.9);
       log.observe(stale, 0.8);
       log.observe(stale, 1);
-      log.observe(queued, 0.6);
+      log.observe(queued("w1"), 0.6);
       log.observe(event({}), 0.2);
 
       const closed = log.close(31_000);
@@ -81,47 +86,47 @@ describe("IncidentLog", () => {
   it("counts writes already waiting in the queue when it opens", () =>
     withSql(async (sql) => {
       const log = new IncidentLog(sql);
-      log.open(1_000, 0.5, 2);
-      log.observe(queued, 1);
-      log.observe(replayed, 0);
-      log.observe(replayed, 0);
-      log.observe(replayed, 0);
+      log.observe(queued("w1"), 0, waiting("w1"));
+      log.open(1_000, 0.5, ["w1", "w2"]);
+      log.observe(queued("w3"), 1);
+      for (const id of ["w1", "w2", "w3"]) log.observe(replayed(id), 0);
       expect(log.close(9_000)).toMatchObject({
         writesQueued: 3,
         writesReplayed: 3,
       });
     }));
 
-  it("counts writes queued behind the backlog after it closes", () =>
+  it("counts writes queued behind its backlog after it closes", () =>
     withSql(async (sql) => {
       const log = new IncidentLog(sql);
       log.open(1_000, 1);
-      log.observe(queued, 1);
-      log.observe(queued, 1);
+      log.observe(queued("w1"), 1);
       log.close(2_000);
-      log.observe(queued, 0, 1_500);
-      log.observe(replayed, 0);
-      log.observe(replayed, 0);
-      log.observe(replayed, 0);
-      log.observe(queued, 0, null);
+      log.observe(queued("w2"), 0, waiting("w1", "w2"));
+      log.observe(replayed("w1"), 0);
+      log.observe(queued("w3"), 0, waiting("w2", "w3"));
+      log.observe(replayed("w2"), 0);
+      log.observe(replayed("w3"), 0);
+      log.observe(queued("w4"), 0, waiting("w4"));
+      log.observe(replayed("w4"), 0);
       expect(log.list(1)[0]).toMatchObject({
         writesQueued: 3,
         writesReplayed: 3,
       });
     }));
 
-  it("leaves a backlog that started after it ended to the next incident", () =>
+  it("leaves a backlog that starts after it to the next incident", () =>
     withSql(async (sql) => {
       const log = new IncidentLog(sql);
       log.open(1_000, 1);
-      log.observe(queued, 1);
+      log.observe(queued("w1"), 1);
       log.close(2_000);
-      log.observe(replayed, 0);
-      log.observe(queued, 0, 5_000);
-      log.observe(queued, 0, 5_000);
-      log.open(6_000, 1, 2);
-      log.observe(replayed, 0);
-      log.observe(replayed, 0);
+      log.observe(replayed("w1"), 0);
+      log.observe(queued("w2"), 0, waiting("w2"));
+      log.observe(queued("w3"), 0, waiting("w2", "w3"));
+      log.open(6_000, 1, ["w2", "w3"]);
+      log.observe(replayed("w2"), 0);
+      log.observe(replayed("w3"), 0);
       log.close(7_000);
 
       const [latest, earlier] = log.list(10);
@@ -129,20 +134,24 @@ describe("IncidentLog", () => {
       expect(latest).toMatchObject({ writesQueued: 2, writesReplayed: 2 });
     }));
 
-  it("credits successful replays to the latest incident after it closed", () =>
+  it("credits each replay to the incident its write was queued in", () =>
     withSql(async (sql) => {
       const log = new IncidentLog(sql);
       log.open(1_000, 1);
+      log.observe(queued("w1"), 1);
       log.close(2_000);
       log.open(3_000, 1);
+      log.observe(queued("w2"), 1);
+      log.observe(queued("w3"), 1);
       log.close(4_000);
-      log.observe(replayed, 0);
-      log.observe(replayed, 0);
-      log.observe(rejected, 0);
+      log.observe(replayed("w1"), 0);
+      log.observe(replayed("w2"), 0);
+      log.observe(replayed("w3", 422), 0);
+      log.observe(replayed("unknown"), 0);
 
       const [latest, earlier] = log.list(10);
-      expect(latest).toMatchObject({ startedAt: 3_000, writesReplayed: 2 });
-      expect(earlier).toMatchObject({ startedAt: 1_000, writesReplayed: 0 });
+      expect(latest).toMatchObject({ writesQueued: 2, writesReplayed: 1 });
+      expect(earlier).toMatchObject({ writesQueued: 1, writesReplayed: 1 });
     }));
 });
 
@@ -152,15 +161,14 @@ describe("IncidentTracker", () => {
     const tracker = new IncidentTracker({
       sql,
       errorRate: () => 1,
-      queueDepth: () => 0,
-      oldestWaitingAt: () => null,
+      waitingWrites: () => [],
       repo: () => "demo/api",
       generate,
       waitUntil: (promise) => pending.push(promise),
     });
     tracker.onTransition(transition("open", Date.UTC(2026, 8, 29, 10, 0, 0)));
     tracker.observe(stale);
-    tracker.observe(queued);
+    tracker.observe(queued("w1"));
     tracker.onTransition(
       transition("half_open", Date.UTC(2026, 8, 29, 10, 0, 30)),
     );

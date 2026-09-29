@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GatewayEvent } from "./events";
+import { IncidentWrites } from "./incident-writes";
 
 export interface Incident {
   id: string;
@@ -26,8 +27,6 @@ export function replayProgress({
 
 const MAX_INCIDENTS = 200;
 
-const LATEST = "SELECT id FROM incidents ORDER BY started_at DESC LIMIT 1";
-
 const IncidentRow = z.object({
   id: z.string(),
   started_at: z.number(),
@@ -39,7 +38,13 @@ const IncidentRow = z.object({
   summary: z.string().nullable(),
 });
 
+export type WaitingWrites = () => string[];
+
+// Each queued write belongs to at most one incident, and its replay is credited
+// to that same incident, so the two counts cannot drift apart.
 export class IncidentLog {
+  private readonly writes: IncidentWrites;
+
   constructor(private readonly sql: SqlStorage) {
     sql.exec(`CREATE TABLE IF NOT EXISTS incidents (
       id TEXT PRIMARY KEY,
@@ -51,18 +56,20 @@ export class IncidentLog {
       writes_replayed INT NOT NULL DEFAULT 0,
       summary TEXT
     )`);
+    this.writes = new IncidentWrites(sql);
   }
 
-  open(at: number, errorRate: number, alreadyQueued = 0): void {
+  open(at: number, errorRate: number, waiting: string[] = []): void {
     if (this.current()) return;
+    const id = crypto.randomUUID();
     this.sql.exec(
-      `INSERT INTO incidents (id, started_at, peak_error_rate, writes_queued)
-        VALUES (?, ?, ?, ?)`,
-      crypto.randomUUID(),
+      "INSERT INTO incidents (id, started_at, peak_error_rate) VALUES (?, ?, ?)",
+      id,
       at,
       errorRate,
-      alreadyQueued,
     );
+    // Writes queued in the moments before the breaker opened belong to this outage.
+    this.addQueued(id, this.writes.attachUnowned(waiting, id));
     this.prune();
   }
 
@@ -80,37 +87,24 @@ export class IncidentLog {
   observe(
     event: GatewayEvent,
     errorRate: number,
-    oldestWaitingAt: number | null = null,
+    waiting: WaitingWrites = () => [],
   ): void {
     const open = this.current();
     if (open) {
       this.sql.exec(
         `UPDATE incidents SET
           peak_error_rate = MAX(peak_error_rate, ?),
-          reads_served_stale = reads_served_stale + ?,
-          writes_queued = writes_queued + ?
+          reads_served_stale = reads_served_stale + ?
           WHERE id = ?`,
         errorRate,
         event.kind === "read" && event.cache === "STALE" ? 1 : 0,
-        isQueuedWrite(event) ? 1 : 0,
         open.id,
       );
     }
-    if (!open && oldestWaitingAt !== null && isQueuedWrite(event)) {
-      // Writes that queue behind a backlog left by the latest outage belong to it.
-      // A backlog that started after it ended belongs to the next outage instead.
-      this.sql.exec(
-        `UPDATE incidents SET writes_queued = writes_queued + 1
-          WHERE id = (${LATEST}) AND ended_at >= ?`,
-        oldestWaitingAt,
-      );
-    }
-    if (isReplayed(event)) {
-      this.sql.exec(
-        `UPDATE incidents SET writes_replayed = writes_replayed + 1
-          WHERE id = (${LATEST})`,
-      );
-    }
+    const writeId = event.detail ?? null;
+    if (writeId === null) return;
+    if (isQueuedWrite(event)) this.creditQueued(writeId, open, waiting);
+    if (isReplayed(event)) this.creditReplayed(writeId);
   }
 
   setSummary(id: string, summary: string): void {
@@ -122,6 +116,35 @@ export class IncidentLog {
       .exec("SELECT * FROM incidents ORDER BY started_at DESC LIMIT ?", limit)
       .toArray()
       .map((row) => toIncident(IncidentRow.parse(row)));
+  }
+
+  private creditQueued(
+    writeId: string,
+    open: Incident | null,
+    waiting: WaitingWrites,
+  ): void {
+    // A write queued behind a backlog belongs to the outage that left the backlog.
+    const owner =
+      open?.id ??
+      this.writes.ownerOfOldest(waiting().filter((id) => id !== writeId));
+    if (owner && this.writes.attach(writeId, owner)) this.addQueued(owner, 1);
+  }
+
+  private creditReplayed(writeId: string): void {
+    const owner = this.writes.ownerOf(writeId);
+    if (!owner) return;
+    this.sql.exec(
+      "UPDATE incidents SET writes_replayed = writes_replayed + 1 WHERE id = ?",
+      owner,
+    );
+  }
+
+  private addQueued(id: string, count: number): void {
+    this.sql.exec(
+      "UPDATE incidents SET writes_queued = writes_queued + ? WHERE id = ?",
+      count,
+      id,
+    );
   }
 
   private current(): Incident | null {
@@ -137,6 +160,7 @@ export class IncidentLog {
         (SELECT id FROM incidents ORDER BY started_at DESC LIMIT ?)`,
       MAX_INCIDENTS,
     );
+    this.writes.forgetMissingIncidents();
   }
 }
 

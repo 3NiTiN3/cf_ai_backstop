@@ -49,8 +49,7 @@ export class RepoGateway extends DurableObject<Env> {
   private readonly incidents = new IncidentTracker({
     sql: this.ctx.storage.sql,
     errorRate: () => this.health.snapshot().errorRate,
-    queueDepth: () => this.writes.queueDepth(),
-    oldestWaitingAt: () => this.writes.oldestWaitingAt(),
+    waitingWrites: () => this.writes.waitingWriteIds(),
     repo: () => this.route?.repoKey ?? null,
     generate: workersAiGenerator(this.env.AI),
     waitUntil: (promise) => this.ctx.waitUntil(promise),
@@ -117,6 +116,7 @@ export class RepoGateway extends DurableObject<Env> {
       status: response.status,
       cache: cacheLabel(response),
       latencyMs: Date.now() - started,
+      detail: response.headers.get("x-backstop-queued") ?? undefined,
     });
     return response;
   }

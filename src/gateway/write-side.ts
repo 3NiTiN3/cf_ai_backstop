@@ -115,8 +115,8 @@ export class WriteSide {
     return this.queue.waitingCount();
   }
 
-  oldestWaitingAt(): number | null {
-    return this.queue.oldestWaitingAt();
+  waitingWriteIds(): string[] {
+    return this.queue.waitingIds();
   }
 
   listQueue(): QueueListing {

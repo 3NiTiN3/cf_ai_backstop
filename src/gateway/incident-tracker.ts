@@ -6,8 +6,7 @@ import { IncidentLog, type ClosedIncident, type Incident } from "./incidents";
 export interface IncidentTrackerDeps {
   sql: SqlStorage;
   errorRate: () => number;
-  queueDepth: () => number;
-  oldestWaitingAt: () => number | null;
+  waitingWrites: () => string[];
   repo: () => string | null;
   generate: Generate;
   waitUntil: (promise: Promise<unknown>) => void;
@@ -22,11 +21,10 @@ export class IncidentTracker {
 
   onTransition(transition: Transition): void {
     if (transition.to === "open") {
-      // Writes queued in the moments before the breaker opened belong to this outage too.
       this.log.open(
         transition.at,
         this.deps.errorRate(),
-        this.deps.queueDepth(),
+        this.deps.waitingWrites(),
       );
     }
     if (transition.to === "closed") {
@@ -36,7 +34,7 @@ export class IncidentTracker {
   }
 
   observe(event: GatewayEvent): void {
-    this.log.observe(event, this.deps.errorRate(), this.deps.oldestWaitingAt());
+    this.log.observe(event, this.deps.errorRate(), this.deps.waitingWrites);
   }
 
   list(limit: number): Incident[] {
