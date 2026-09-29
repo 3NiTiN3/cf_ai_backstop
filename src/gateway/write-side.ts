@@ -74,6 +74,7 @@ export class WriteSide {
       upstream: deps.upstream,
       unsealToken: async (sealed) => unseal(await this.key(), sealed),
       onSent: (write, result) => this.recordReplay(write, result),
+      breakerClosed: () => deps.mode() === "normal",
     });
   }
 

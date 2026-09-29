@@ -19,6 +19,7 @@ interface ReplayHarness {
   replayer: QueueReplayer;
   calls: Request[];
   respond: (result: UpstreamResult) => void;
+  openBreaker: () => void;
   add: (body: string, token?: string) => Promise<string>;
 }
 
@@ -31,6 +32,7 @@ function withReplayer(run: (harness: ReplayHarness) => Promise<void>) {
     const queue = new WriteQueue(state.storage.sql);
     const calls: Request[] = [];
     let result = okResult("{}", { status: 201 });
+    let closed = true;
     const replayer = new QueueReplayer(queue, {
       now: () => 5_000,
       upstream: async (_namespace, request) => {
@@ -39,6 +41,7 @@ function withReplayer(run: (harness: ReplayHarness) => Promise<void>) {
       },
       unsealToken: (sealed) => unseal(key, sealed),
       onSent: () => undefined,
+      breakerClosed: () => closed,
     });
     let ids = 0;
     const add = async (body: string, token?: string) =>
@@ -57,6 +60,7 @@ function withReplayer(run: (harness: ReplayHarness) => Promise<void>) {
       calls,
       add,
       respond: (next) => (result = next),
+      openBreaker: () => (closed = false),
     });
   });
 }
@@ -130,6 +134,20 @@ describe("QueueReplayer", () => {
       expect(replayer.settle(first)).toBe("stop");
       expect(queue.get(first)?.status).toBe("pending");
       expect(queue.get(second)?.status).toBe("pending");
+    }));
+
+  it("pauses instead of retrying once the breaker is no longer closed", () =>
+    withReplayer(async ({ add, replayer, queue, respond, openBreaker }) => {
+      const id = await add("{}");
+      replayer.claimBatch();
+      respond(okResult("", { status: 502, outcome: "network_error" }));
+      openBreaker();
+      expect(await replayer.send("demo", id)).toEqual({
+        kind: "paused",
+        error: "network_error (502)",
+      });
+      expect(replayer.settle(id)).toBe("stop");
+      expect(queue.get(id)).toMatchObject({ status: "pending", attempts: 1 });
     }));
 
   it("skips writes that are not in flight", () =>
@@ -209,7 +227,7 @@ it("ReplayWorkflow replays a demo queue in order and skips rejected writes", asy
   ]);
 });
 
-it("ReplayWorkflow stops and returns writes to pending when retries run out", async () => {
+it("ReplayWorkflow stops and returns writes to pending once the breaker opens", async () => {
   const registry = env.Registry.getByName(REGISTRY_NAME);
   await registry.setChaos("demo", { ...CHAOS_OFF, mode: "blackout" });
   const gateway = env.RepoGateway.getByName("demo:demo/web");
@@ -251,7 +269,7 @@ it("ReplayWorkflow stops and returns writes to pending when retries run out", as
 
   await runInDurableObject(gateway, async (_instance, state) => {
     const queue = new WriteQueue(state.storage.sql);
-    expect(queue.get("s1")).toMatchObject({ status: "pending", attempts: 6 });
+    expect(queue.get("s1")).toMatchObject({ status: "pending", attempts: 5 });
     expect(queue.get("s2")).toMatchObject({ status: "pending", attempts: 0 });
   });
 });

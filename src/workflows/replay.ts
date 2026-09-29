@@ -22,7 +22,7 @@ export interface ReplaySummary {
 type Gateway = DurableObjectStub<RepoGateway>;
 
 const SEND_CONFIG = {
-  retries: { limit: 5, delay: "10 seconds", backoff: "exponential" },
+  retries: { limit: 5, delay: "2 seconds", backoff: "exponential" },
   timeout: "30 seconds",
 } satisfies WorkflowStepConfig;
 
@@ -59,6 +59,8 @@ async function sendOne(
     await step.do(`send ${id}`, SEND_CONFIG, async () => {
       const outcome = await gateway.sendQueuedWrite(namespace, id);
       if (outcome.kind === "retry") throw new Error(outcome.error);
+      // The breaker-close trigger starts a fresh run, so backing off here would only delay it.
+      if (outcome.kind === "paused") throw new NonRetryableError(outcome.error);
       if (outcome.kind === "failed") throw new NonRetryableError(outcome.error);
       return outcome.kind;
     });

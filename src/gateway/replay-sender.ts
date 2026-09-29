@@ -8,6 +8,7 @@ export type SendOutcome =
   | { kind: "done"; status: number }
   | { kind: "failed"; error: string }
   | { kind: "retry"; error: string }
+  | { kind: "paused"; error: string }
   | { kind: "skipped" };
 
 export type SettleDecision = "continue" | "stop";
@@ -17,6 +18,7 @@ export interface ReplayDeps {
   upstream: (namespace: Namespace, request: Request) => Promise<UpstreamResult>;
   unsealToken: (sealed: SealedText) => Promise<string>;
   onSent: (write: QueuedWrite, result: UpstreamResult) => void;
+  breakerClosed: () => boolean;
 }
 
 const BATCH_SIZE = 10;
@@ -44,7 +46,9 @@ export class QueueReplayer {
     if (isUnavailable(result.outcome)) {
       const error = `${result.outcome} (${result.status})`;
       this.queue.noteAttempt(id, error, this.deps.now());
-      return { kind: "retry", error };
+      return this.deps.breakerClosed()
+        ? { kind: "retry", error }
+        : { kind: "paused", error };
     }
     if (result.status >= 400) {
       return this.fail(id, result.status, errorText(result));
