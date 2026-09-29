@@ -35,7 +35,7 @@ export class IncidentTracker {
   }
 
   observe(event: GatewayEvent): void {
-    this.log.observe(event, this.deps.errorRate());
+    this.log.observe(event, this.deps.errorRate(), this.deps.queueDepth() > 1);
   }
 
   list(limit: number): Incident[] {

@@ -92,6 +92,24 @@ describe("IncidentLog", () => {
       });
     }));
 
+  it("counts writes queued behind the backlog after it closes", () =>
+    withSql(async (sql) => {
+      const log = new IncidentLog(sql);
+      log.open(1_000, 1);
+      log.observe(queued, 1);
+      log.observe(queued, 1);
+      log.close(2_000);
+      log.observe(queued, 0, true);
+      log.observe(replayed, 0);
+      log.observe(replayed, 0);
+      log.observe(replayed, 0);
+      log.observe(queued, 0, false);
+      expect(log.list(1)[0]).toMatchObject({
+        writesQueued: 3,
+        writesReplayed: 3,
+      });
+    }));
+
   it("credits successful replays to the latest incident after it closed", () =>
     withSql(async (sql) => {
       const log = new IncidentLog(sql);

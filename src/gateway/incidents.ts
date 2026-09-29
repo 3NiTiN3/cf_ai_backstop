@@ -26,6 +26,8 @@ export function replayProgress({
 
 const MAX_INCIDENTS = 200;
 
+const LATEST = "SELECT id FROM incidents ORDER BY started_at DESC LIMIT 1";
+
 const IncidentRow = z.object({
   id: z.string(),
   started_at: z.number(),
@@ -75,7 +77,7 @@ export class IncidentLog {
     return { ...open, endedAt: at };
   }
 
-  observe(event: GatewayEvent, errorRate: number): void {
+  observe(event: GatewayEvent, errorRate: number, draining = false): void {
     const open = this.current();
     if (open) {
       this.sql.exec(
@@ -86,14 +88,20 @@ export class IncidentLog {
           WHERE id = ?`,
         errorRate,
         event.kind === "read" && event.cache === "STALE" ? 1 : 0,
-        event.kind === "write" && event.cache === "QUEUED" ? 1 : 0,
+        isQueuedWrite(event) ? 1 : 0,
         open.id,
+      );
+    }
+    if (!open && draining && isQueuedWrite(event)) {
+      // Writes that queue behind the backlog while it drains are part of the same outage.
+      this.sql.exec(
+        `UPDATE incidents SET writes_queued = writes_queued + 1 WHERE id = (${LATEST})`,
       );
     }
     if (isReplayed(event)) {
       this.sql.exec(
         `UPDATE incidents SET writes_replayed = writes_replayed + 1
-          WHERE id = (SELECT id FROM incidents ORDER BY started_at DESC LIMIT 1)`,
+          WHERE id = (${LATEST})`,
       );
     }
   }
@@ -140,4 +148,8 @@ function toIncident(row: z.infer<typeof IncidentRow>): Incident {
     writesReplayed: row.writes_replayed,
     summary: row.summary,
   };
+}
+
+function isQueuedWrite(event: GatewayEvent): boolean {
+  return event.kind === "write" && event.cache === "QUEUED";
 }
