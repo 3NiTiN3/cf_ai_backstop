@@ -20,7 +20,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "check": "npm run typecheck && npm run lint && npm run test",
-    "evals": "node scripts/run-evals.ts"
+    "evals": "node scripts/run-evals.ts",
+    "simulate": "node scripts/simulate-agents.ts"
   },
   "dependencies": {
     "@cloudflare/ai-chat": "^0.9.3",
