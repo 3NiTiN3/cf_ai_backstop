@@ -16,6 +16,10 @@ const PREFIXES: ReadonlyArray<readonly [string, Namespace]> = [
 
 const GITHUB_NAME = /^[A-Za-z0-9_.-]+$/;
 
+export function gatewayPrefix(namespace: Namespace): string {
+  return namespace === "demo" ? "/demo/gh" : "/gh";
+}
+
 export function parseGatewayUrl(url: URL): GatewayRoute | null {
   for (const [prefix, namespace] of PREFIXES) {
     const upstreamPath = stripPrefix(url.pathname, prefix);

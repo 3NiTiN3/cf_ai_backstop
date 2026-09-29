@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { handleGatewayRequest } from "../gateway/handler";
-import type { Namespace } from "../gateway/routes";
+import { gatewayPrefix, type Namespace } from "../gateway/routes";
 
 const MAX_BODY_CHARS = 20_000;
 
@@ -55,7 +55,7 @@ export async function callGateway(
 }
 
 function toRequest(call: GatewayCall): Request {
-  const prefix = call.namespace === "demo" ? "/demo/gh" : "/gh";
+  const prefix = gatewayPrefix(call.namespace);
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "user-agent": "backstop-mcp",

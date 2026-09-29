@@ -30,7 +30,7 @@ console.log(data.full_name);
 
 Use `/demo/gh` as the base URL to try it without a token, for example with `owner: "demo", repo: "api"`.
 
-Cached responses are kept per token, so one caller never sees another caller's private data.
+Cached responses are kept per token, so one caller never sees another caller's private data. Pagination links in the `link` header point back at Backstop, so `github.paginate` stays on the gateway.
 
 ## curl
 

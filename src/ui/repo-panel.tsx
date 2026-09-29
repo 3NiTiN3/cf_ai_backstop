@@ -1,4 +1,4 @@
-import type { Namespace } from "../gateway/routes";
+import { gatewayPrefix, type Namespace } from "../gateway/routes";
 import { PanelBody } from "./panel-body";
 import { Section } from "./section";
 import type { RepoRow } from "./repo-rows";
@@ -17,7 +17,7 @@ export function RepoPanel({
   selected: string | null;
   onSelect: (repoKey: string) => void;
 }) {
-  const prefix = namespace === "demo" ? "/demo/gh" : "/gh";
+  const prefix = gatewayPrefix(namespace);
   return (
     <Section id="repos-heading" title="Repos">
       <PanelBody data={rows} error={error} what="repos" skeletonClass="h-40">

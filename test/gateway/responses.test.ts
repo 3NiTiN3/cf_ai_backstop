@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
-import { fromUpstream, stale } from "../../src/gateway/responses";
+import {
+  finishGatewayResponse,
+  fromUpstream,
+  gatewayLinks,
+  stale,
+} from "../../src/gateway/responses";
 import { okResult } from "./helpers";
 
 it("turns unreachable upstreams into JSON errors for passthrough calls", async () => {
@@ -35,4 +40,28 @@ it("never reports a negative age for stale entries", () => {
   };
   expect(stale(entry, 1000).headers.get("age")).toBe("0");
   expect(stale(entry, 7999).headers.get("age")).toBe("2");
+});
+
+it("points GitHub pagination links at the gateway", () => {
+  const link =
+    '<https://api.github.com/repositories/1/issues?page=2>; rel="next", <https://api.github.com/repositories/1/issues?page=9>; rel="last"';
+  expect(gatewayLinks(link, "https://backstop.example/gh")).toBe(
+    '<https://backstop.example/gh/repositories/1/issues?page=2>; rel="next", <https://backstop.example/gh/repositories/1/issues?page=9>; rel="last"',
+  );
+});
+
+it("adds the mode header and rewrites links on the way out", () => {
+  const response = finishGatewayResponse(
+    new Response("[]", {
+      headers: {
+        link: '<https://api.github.com/repos/a/b/pulls?page=2>; rel="next"',
+      },
+    }),
+    "http://localhost:5173/demo/gh",
+    "degraded",
+  );
+  expect(response.headers.get("x-backstop-mode")).toBe("degraded");
+  expect(response.headers.get("link")).toBe(
+    '<http://localhost:5173/demo/gh/repos/a/b/pulls?page=2>; rel="next"',
+  );
 });

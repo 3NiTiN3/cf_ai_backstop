@@ -96,6 +96,26 @@ function bodyResponse(result: UpstreamResult): Response {
   });
 }
 
+const GITHUB_API = "https://api.github.com/";
+
+// GitHub's pagination links are absolute, so clients following them would leave the gateway.
+export function gatewayLinks(link: string, gatewayBase: string): string {
+  return link.replaceAll(GITHUB_API, `${gatewayBase}/`);
+}
+
+export function finishGatewayResponse(
+  response: Response,
+  gatewayBase: string,
+  mode: string,
+): Response {
+  if (!response.headers.has(MODE_HEADER)) {
+    response.headers.set(MODE_HEADER, mode);
+  }
+  const link = response.headers.get("link");
+  if (link) response.headers.set("link", gatewayLinks(link, gatewayBase));
+  return response;
+}
+
 export function cacheLabel(response: Response): string {
   if (response.headers.get("x-backstop-coalesced") === "1") return "COALESCED";
   if (response.headers.get(DUPLICATE_HEADER) === "1") return "DUPLICATE";

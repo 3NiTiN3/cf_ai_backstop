@@ -12,8 +12,8 @@ import { IncidentTracker } from "./incident-tracker";
 import type { Incident } from "./incidents";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
-import { MODE_HEADER, cacheLabel } from "./responses";
-import type { GatewayRoute, Namespace } from "./routes";
+import { cacheLabel, finishGatewayResponse } from "./responses";
+import { gatewayPrefix, type GatewayRoute, type Namespace } from "./routes";
 import { RepoReporter } from "./repo-reporter";
 import { TIMELINE_LIMIT, buildTimeline, type TimelineEntry } from "./timeline";
 import { fetchUpstream, type UpstreamResult } from "./upstream";
@@ -103,10 +103,11 @@ export class RepoGateway extends DurableObject<Env> {
   async handle(request: Request, route: GatewayRoute): Promise<Response> {
     this.route = route;
     const started = Date.now();
-    const response = await this.dispatch(request, route);
-    if (!response.headers.has(MODE_HEADER)) {
-      response.headers.set(MODE_HEADER, this.upstream.mode());
-    }
+    const response = finishGatewayResponse(
+      await this.dispatch(request, route),
+      `${new URL(request.url).origin}${gatewayPrefix(route.namespace)}`,
+      this.upstream.mode(),
+    );
     this.record({
       ts: started,
       kind: request.method === "GET" ? "read" : "write",
