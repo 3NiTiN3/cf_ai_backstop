@@ -160,7 +160,7 @@ describe("IncidentTracker", () => {
       });
       expect(seen[0]).toContain("Duration: 42 seconds");
       expect(seen[0]).toContain("Reads served from stale cache: 1");
-      expect(seen[0]).toContain("Writes queued for replay: 1");
+      expect(seen[0]).not.toContain("queued");
       expect(incident?.summary).toBe(
         "demo/api lost GitHub for 42 seconds, reads stayed up.",
       );
@@ -172,8 +172,8 @@ describe("IncidentTracker", () => {
         throw new Error("AI unavailable");
       });
       expect(incident?.summary).toBe(
-        "demo/api was degraded for 42 seconds from 10:00:00 UTC, with a peak upstream error rate of 100%. " +
-          "Backstop served 1 stale reads and queued 1 writes for replay.",
+        "demo/api was degraded for 42 seconds, with a peak upstream error rate of 100%. " +
+          "Backstop served 1 read from stale cache.",
       );
     }));
 });

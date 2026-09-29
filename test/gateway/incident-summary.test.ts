@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   summarizeIncident,
   templateSummary,
-  withReplayStatus,
+  withWriteStatus,
 } from "../../src/gateway/incident-summary";
 import {
   replayProgress,
@@ -34,19 +34,22 @@ describe("summarizeIncident", () => {
   it("uses the template when the model returns nothing", async () => {
     const summary = await summarizeIncident(incident, null, async () => "   ");
     expect(summary).toBe(
-      "The repo was degraded for 5 minutes from 09:58:00 UTC, with a peak upstream error rate of 63%. " +
-        "Backstop served 40 stale reads and queued 5 writes for replay.",
+      "The repo was degraded for 5 minutes, with a peak upstream error rate of 62.5%. " +
+        "Backstop served 40 reads from stale cache.",
     );
   });
 
-  it("keeps replay progress out of the model's facts", async () => {
+  it("keeps write counts out of the stored summary", async () => {
     let facts = "";
     await summarizeIncident(incident, "demo/web", async (_system, sheet) => {
       facts = sheet;
       return "ok";
     });
-    expect(facts).toContain("Writes queued for replay: 5");
-    expect(facts).not.toMatch(/replayed|under way/);
+    expect(facts).toContain("Reads served from stale cache: 40");
+    expect(facts).not.toMatch(/write|queue|replay/i);
+    expect(templateSummary(incident, "demo/web")).not.toMatch(
+      /write|queue|replay/i,
+    );
   });
 
   it("caps long model output", async () => {
@@ -72,22 +75,39 @@ describe("replayProgress", () => {
   });
 });
 
-describe("withReplayStatus", () => {
+describe("withWriteStatus", () => {
   const summarized = { ...incident, summary: "demo/web was down." };
 
-  it("reports replay from the current counts", () => {
-    expect(withReplayStatus(summarized)).toBe(
-      "demo/web was down. Replay of the queued writes is under way: 0 of 5 replayed so far.",
+  it("reports queued and replayed writes from the current counts", () => {
+    expect(withWriteStatus(summarized)).toBe(
+      "demo/web was down. Backstop queued 5 writes for replay, and 0 of 5 have been replayed so far.",
     );
-    expect(withReplayStatus({ ...summarized, writesReplayed: 5 })).toBe(
-      "demo/web was down. All 5 queued writes have been replayed.",
+    expect(withWriteStatus({ ...summarized, writesReplayed: 5 })).toBe(
+      "demo/web was down. Backstop queued 5 writes for replay, and all 5 have been replayed.",
+    );
+    expect(
+      withWriteStatus({ ...summarized, writesQueued: 1, writesReplayed: 1 }),
+    ).toBe(
+      "demo/web was down. Backstop queued 1 write for replay, and it has been replayed.",
     );
   });
 
+  it("counts writes credited after the summary was written", () => {
+    const stored = {
+      ...summarized,
+      summary: templateSummary(incident, "demo/web"),
+    };
+    const later = { ...stored, writesQueued: 26, writesReplayed: 26 };
+    expect(withWriteStatus(later)).toContain(
+      "Backstop queued 26 writes for replay, and all 26 have been replayed.",
+    );
+    expect(withWriteStatus(later)?.match(/\d+ writes/g)).toEqual(["26 writes"]);
+  });
+
   it("adds nothing when no writes were queued or there is no summary", () => {
-    expect(withReplayStatus({ ...summarized, writesQueued: 0 })).toBe(
+    expect(withWriteStatus({ ...summarized, writesQueued: 0 })).toBe(
       "demo/web was down.",
     );
-    expect(withReplayStatus(incident)).toBeNull();
+    expect(withWriteStatus(incident)).toBeNull();
   });
 });

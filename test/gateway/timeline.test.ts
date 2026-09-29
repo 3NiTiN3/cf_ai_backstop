@@ -59,7 +59,7 @@ it("merges breaker, chaos, queue, replay and incident entries newest first", () 
     [
       7,
       "incident",
-      "demo/api was down. All 1 queued writes have been replayed.",
+      "demo/api was down. Backstop queued 1 write for replay, and it has been replayed.",
     ],
     [6, "chaos", "Chaos off"],
     [5, "queue", "Queued POST /repos/demo/api/issues/1/comments"],

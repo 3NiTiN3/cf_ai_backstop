@@ -1,6 +1,6 @@
 import type { ChaosEvent } from "./chaos-store";
 import type { GatewayEvent } from "./events";
-import { withReplayStatus } from "./incident-summary";
+import { withWriteStatus } from "./incident-summary";
 import type { Incident } from "./incidents";
 
 export const TIMELINE_LIMIT = 50;
@@ -85,7 +85,7 @@ function incidentEntries(incident: Incident): TimelineEntry[] {
     text: "Incident started",
   };
   if (incident.endedAt === null) return [started];
-  const summary = withReplayStatus(incident) ?? "Incident ended";
+  const summary = withWriteStatus(incident) ?? "Incident ended";
   return [{ at: incident.endedAt, kind: "incident", text: summary }, started];
 }
 

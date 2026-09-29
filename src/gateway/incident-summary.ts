@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CHAT_MODEL } from "../agent/model";
+import { percent } from "../shared/percent";
 import {
   replayProgress,
   type ClosedIncident,
@@ -13,7 +14,7 @@ const MAX_SUMMARY_TOKENS = 160;
 const MAX_SUMMARY_CHARS = 600;
 
 const SYSTEM = `You write incident summaries for Backstop, a gateway in front of the GitHub API.
-Write 2 or 3 short plain sentences using only the facts given. Do not add causes, advice or numbers that are not in the facts. Do not say whether queued writes have been replayed; replay progress is reported separately. Do not use em dashes, lists or headings.`;
+Write 2 short plain sentences using only the facts given. Do not add causes, advice, times or numbers that are not in the facts. Do not mention writes, queues or replays; they are reported separately. Do not use em dashes, lists or headings.`;
 
 const AiText = z.object({ response: z.string() });
 
@@ -53,34 +54,36 @@ export function templateSummary(
 ): string {
   const subject = repo ?? "The repo";
   return (
-    `${subject} was degraded for ${duration(incident)} from ${clock(incident.startedAt)} UTC, ` +
-    `with a peak upstream error rate of ${percent(incident.peakErrorRate)}. ` +
-    `Backstop served ${incident.readsServedStale} stale reads and queued ${incident.writesQueued} writes for replay.`
+    `${subject} was degraded for ${duration(incident)}, ` +
+    `with a peak upstream error rate of ${percent(incident.peakErrorRate)}%. ` +
+    `Backstop served ${count(incident.readsServedStale, "read")} from stale cache.`
   );
 }
 
 function factSheet(incident: ClosedIncident, repo: string | null): string {
   return [
     `Repo: ${repo ?? "unknown"}`,
-    `Started: ${clock(incident.startedAt)} UTC`,
-    `Ended: ${clock(incident.endedAt)} UTC`,
     `Duration: ${duration(incident)}`,
-    `Peak upstream error rate: ${percent(incident.peakErrorRate)}`,
+    `Peak upstream error rate: ${percent(incident.peakErrorRate)}%`,
     `Reads served from stale cache: ${incident.readsServedStale}`,
-    `Writes queued for replay: ${incident.writesQueued}`,
   ].join("\n");
 }
 
-export function withReplayStatus(incident: Incident): string | null {
+// Writes can still be credited to an incident after it closes (they queue behind the
+// backlog), so their counts come from the current row, never from the stored summary.
+export function withWriteStatus(incident: Incident): string | null {
   if (incident.summary === null) return null;
   const { writesQueued, writesReplayed } = incident;
+  const queued = `Backstop queued ${count(writesQueued, "write")} for replay`;
   switch (replayProgress(incident)) {
     case "nothing queued":
       return incident.summary;
     case "completed":
-      return `${incident.summary} All ${writesQueued} queued writes have been replayed.`;
+      return writesQueued === 1
+        ? `${incident.summary} ${queued}, and it has been replayed.`
+        : `${incident.summary} ${queued}, and all ${writesQueued} have been replayed.`;
     case "under way":
-      return `${incident.summary} Replay of the queued writes is under way: ${writesReplayed} of ${writesQueued} replayed so far.`;
+      return `${incident.summary} ${queued}, and ${writesReplayed} of ${writesQueued} have been replayed so far.`;
   }
 }
 
@@ -101,12 +104,8 @@ function duration({ startedAt, endedAt }: ClosedIncident): string {
   return `${Math.round(seconds / 60)} minutes`;
 }
 
-function clock(ms: number): string {
-  return new Date(ms).toISOString().slice(11, 19);
-}
-
-function percent(ratio: number): string {
-  return `${Math.round(ratio * 100)}%`;
+function count(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

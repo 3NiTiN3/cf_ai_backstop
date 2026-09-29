@@ -1,4 +1,4 @@
-import { withReplayStatus } from "./incident-summary";
+import { withWriteStatus } from "./incident-summary";
 import type { Incident } from "./incidents";
 import { findRepoGateway } from "./lookup";
 import { REGISTRY_NAME } from "./registry";
@@ -39,7 +39,7 @@ export async function listIncidents(
 function tag(repo: string, incidents: Incident[]): RepoIncident[] {
   return incidents.map((incident) => ({
     ...incident,
-    summary: withReplayStatus(incident),
+    summary: withWriteStatus(incident),
     repo,
   }));
 }
