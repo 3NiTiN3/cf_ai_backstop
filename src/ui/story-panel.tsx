@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "@cloudflare/kumo";
 import { PlayIcon, StopIcon } from "@phosphor-icons/react";
-import { Section } from "./section";
 import {
   playStory,
   stopStory,
@@ -38,11 +37,46 @@ export function StoryPanel() {
   };
 
   return (
-    <Section
-      id="story-heading"
-      title="Outage story"
-      aside={
-        running ? (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+          <h2 id="story-heading" className="text-subhead text-kumo-subtle">
+            Outage story
+          </h2>
+          <ol
+            aria-label="Story steps"
+            className="flex flex-wrap items-center gap-1.5"
+          >
+            {storySteps(step).map(({ step: id, label, state }, index) => (
+              <li
+                key={id}
+                aria-current={state === "current" ? "step" : undefined}
+                className="flex items-center gap-1.5 text-caption"
+              >
+                {index > 0 && (
+                  <span
+                    aria-hidden
+                    className={`h-px w-4 transition-colors duration-500 ${state === "upcoming" ? "bg-kumo-line" : "bg-kumo-success"}`}
+                  />
+                )}
+                <span
+                  aria-hidden
+                  className={`size-2 shrink-0 rounded-full transition-colors duration-500 ${DOT[state]}`}
+                />
+                <span
+                  className={
+                    state === "upcoming"
+                      ? "text-kumo-subtle"
+                      : "font-medium text-kumo-default"
+                  }
+                >
+                  {label}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        {running ? (
           <StopButton disabled={starting} onClick={() => void act(stopStory)} />
         ) : (
           <Button
@@ -54,47 +88,21 @@ export function StoryPanel() {
           >
             Play the outage story
           </Button>
-        )
-      }
-    >
-      <div className="rounded-xl border border-kumo-line bg-kumo-base px-4 py-3 space-y-2">
-        <ol aria-label="Story steps" className="grid grid-cols-4 gap-2">
-          {storySteps(step).map(({ step: id, label, state }) => (
-            <li
-              key={id}
-              aria-current={state === "current" ? "step" : undefined}
-              className="flex items-center gap-2 text-caption"
-            >
-              <span
-                aria-hidden
-                className={`size-2 shrink-0 rounded-full transition-colors duration-500 ${DOT[state]}`}
-              />
-              <span
-                className={
-                  state === "upcoming"
-                    ? "text-kumo-subtle"
-                    : "font-medium text-kumo-default"
-                }
-              >
-                {label}
-              </span>
-            </li>
-          ))}
-        </ol>
-        <p
-          key={step}
-          role="status"
-          className="text-body text-kumo-subtle animate-enter"
-        >
-          {storyCaption(step)}
-        </p>
+        )}
       </div>
+      <p
+        key={step}
+        role="status"
+        className="animate-enter text-body text-kumo-subtle"
+      >
+        {storyCaption(step)}
+      </p>
       {failure && (
         <p role="alert" className="text-caption text-kumo-danger">
           {failure}
         </p>
       )}
-    </Section>
+    </div>
   );
 }
 

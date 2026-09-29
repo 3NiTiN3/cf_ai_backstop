@@ -6,7 +6,6 @@ import {
   useChaos,
   type ChaosPreset,
 } from "./chaos-data";
-import { Section } from "./section";
 import { Segmented } from "./segmented";
 
 export function ChaosPanel({
@@ -35,10 +34,11 @@ export function ChaosPanel({
   };
 
   return (
-    <Section
-      id="chaos-heading"
-      title="Chaos"
-      aside={
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="chaos-heading" className="text-subhead text-kumo-subtle">
+          Chaos
+        </h2>
         <Segmented
           label="Chaos mode"
           options={CHAOS_PRESETS.map(({ mode, label, tone }) => ({
@@ -53,13 +53,12 @@ export function ChaosPanel({
             if (preset) void apply(preset);
           }}
         />
-      }
-    >
+      </div>
       {(failure ?? chaos.error) && (
         <p role="status" className="text-caption text-kumo-danger">
           {failure ?? `Could not load chaos settings: ${chaos.error}`}
         </p>
       )}
-    </Section>
+    </div>
   );
 }

@@ -12,8 +12,6 @@ import {
   type QueueEntry,
 } from "./queue-data";
 
-const MAX_SHOWN = 20;
-
 const ACTION_LABELS: Record<QueueAction, string> = {
   retry: "Retry",
   drop: "Drop",
@@ -74,8 +72,12 @@ export function QueuePanel({
           items.length === 0 ? (
             <p className="text-body text-kumo-subtle">No queued writes.</p>
           ) : (
-            <ul className="rounded-xl border border-kumo-line bg-kumo-base divide-y divide-kumo-line">
-              {items.slice(0, MAX_SHOWN).map((entry) => (
+            <ul
+              tabIndex={0}
+              aria-label={`Queued writes for ${repoKey}, newest first`}
+              className="relative max-h-96 divide-y divide-kumo-line overflow-y-auto rounded-xl border border-kumo-line bg-kumo-base focus-visible:outline-2 focus-visible:outline-kumo-focus"
+            >
+              {items.map((entry) => (
                 <QueueItem
                   key={entry.id}
                   entry={entry}
@@ -105,7 +107,10 @@ function QueueItem({
       <span className="w-16 shrink-0 font-figures text-caption text-kumo-subtle">
         {statusLabel(entry)}
       </span>
-      <span className="min-w-0 flex-1 break-all text-kumo-default">
+      <span
+        title={`${entry.method} ${entry.path}`}
+        className="min-w-0 flex-1 truncate text-kumo-default"
+      >
         {entry.method} {entry.path}
       </span>
       <span className="font-figures text-caption text-kumo-subtle">
