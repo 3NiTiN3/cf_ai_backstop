@@ -19,7 +19,9 @@ interface ReplaySummary {
   stopped: boolean;
 }
 
-type Gateway = DurableObjectStub<RepoGateway>;
+// A stub that threw (for example "reset because its code was updated" after a
+// deploy) stays broken, so every step asks for a fresh one.
+type Gateway = () => DurableObjectStub<RepoGateway>;
 
 const SEND_CONFIG = {
   retries: { limit: 5, delay: "2 seconds", backoff: "exponential" },
@@ -31,13 +33,12 @@ export class ReplayWorkflow extends WorkflowEntrypoint<Env, ReplayParams> {
     event: Readonly<WorkflowEvent<ReplayParams>>,
     step: WorkflowStep,
   ): Promise<ReplaySummary> {
-    const gateway = this.env.RepoGateway.getByName(
-      durableObjectName(event.payload),
-    );
+    const name = durableObjectName(event.payload);
+    const gateway: Gateway = () => this.env.RepoGateway.getByName(name);
     const summary: ReplaySummary = { sent: 0, failed: 0, stopped: false };
     for (let batch = 1; ; batch++) {
       const ids = await step.do(`claim batch ${batch}`, () =>
-        gateway.claimReplayBatch(),
+        gateway().claimReplayBatch(),
       );
       if (ids.length === 0) return summary;
       for (const id of ids) {
@@ -57,7 +58,7 @@ async function sendOne(
 ): Promise<"sent" | "failed" | "stop"> {
   try {
     await step.do(`send ${id}`, SEND_CONFIG, async () => {
-      const outcome = await gateway.sendQueuedWrite(namespace, id);
+      const outcome = await gateway().sendQueuedWrite(namespace, id);
       if (outcome.kind === "retry") throw new Error(outcome.error);
       // The breaker-close trigger starts a fresh run, so backing off here would only delay it.
       if (outcome.kind === "paused") throw new NonRetryableError(outcome.error);
@@ -67,7 +68,7 @@ async function sendOne(
     return "sent";
   } catch {
     const decision = await step.do(`settle ${id}`, () =>
-      gateway.settleQueuedWrite(id),
+      gateway().settleQueuedWrite(id),
     );
     return decision === "stop" ? "stop" : "failed";
   }
