@@ -18,6 +18,7 @@ import { createAgentTools } from "./agent/toolset";
 import { requestedNamespace } from "./agent/inputs";
 import { handleApiRequest } from "./api/handler";
 import { handleGatewayRequest } from "./gateway/handler";
+import { handleMcpRequest } from "./mcp/handler";
 import { jsonError } from "./gateway/responses";
 
 export { RepoGateway } from "./gateway/repo-gateway";
@@ -75,9 +76,10 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
 }
 
 export default {
-  async fetch(request: Request, env: Env) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return (
       (await handleGatewayRequest(request, env)) ??
+      (await handleMcpRequest(request, env, ctx)) ??
       (await handleApiRequest(request, env)) ??
       (await routeAgentRequest(request, env)) ??
       jsonError(404, "Not Found")
