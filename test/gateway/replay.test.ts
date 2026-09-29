@@ -150,6 +150,26 @@ describe("QueueReplayer", () => {
       expect(queue.get(id)).toMatchObject({ status: "pending", attempts: 1 });
     }));
 
+  it("retries 408 and 429 but not other client errors", () =>
+    withReplayer(async ({ add, replayer, respond }) => {
+      const cases: [number, UpstreamResult["outcome"], string][] = [
+        [408, "timeout", "retry"],
+        [429, "rate_limited", "retry"],
+        [400, "client_error", "failed"],
+        [404, "client_error", "failed"],
+        [422, "client_error", "failed"],
+      ];
+      for (const [status, outcome, expected] of cases) {
+        const id = await add(`{"status":${status}}`);
+        replayer.claimBatch();
+        respond(okResult("{}", { status, outcome }));
+        expect((await replayer.send("demo", id)).kind, String(status)).toBe(
+          expected,
+        );
+        replayer.settle(id);
+      }
+    }));
+
   it("skips writes that are not in flight", () =>
     withReplayer(async ({ add, replayer, calls }) => {
       const id = await add("{}");

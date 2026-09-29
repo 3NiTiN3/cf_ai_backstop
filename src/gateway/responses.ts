@@ -6,6 +6,7 @@ export type CacheStatus =
 
 export const MODE_HEADER = "x-backstop-mode";
 const CACHE_HEADER = "x-backstop-cache";
+const DUPLICATE_HEADER = "x-backstop-duplicate";
 
 export function jsonError(status: number, message: string): Response {
   return Response.json({ message }, { status });
@@ -51,13 +52,20 @@ export function writeNotQueueable(reason: string): Response {
   );
 }
 
-export function queued(id: string, position: number, status: string) {
+export function queued(
+  id: string,
+  position: number,
+  status: string,
+  duplicate: boolean,
+) {
+  const headers: Record<string, string> = {
+    [CACHE_HEADER]: "QUEUED",
+    "x-backstop-queued": id,
+  };
+  if (duplicate) headers[DUPLICATE_HEADER] = "1";
   return Response.json(
     { queued: true, id, position, status },
-    {
-      status: 202,
-      headers: { [CACHE_HEADER]: "QUEUED", "x-backstop-queued": id },
-    },
+    { status: 202, headers },
   );
 }
 
@@ -86,4 +94,10 @@ function bodyResponse(result: UpstreamResult): Response {
     status: result.status,
     headers: result.headers,
   });
+}
+
+export function cacheLabel(response: Response): string {
+  if (response.headers.get("x-backstop-coalesced") === "1") return "COALESCED";
+  if (response.headers.get(DUPLICATE_HEADER) === "1") return "DUPLICATE";
+  return response.headers.get(CACHE_HEADER) ?? "NONE";
 }

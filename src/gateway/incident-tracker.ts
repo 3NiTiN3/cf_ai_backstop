@@ -6,6 +6,7 @@ import { IncidentLog, type ClosedIncident, type Incident } from "./incidents";
 export interface IncidentTrackerDeps {
   sql: SqlStorage;
   errorRate: () => number;
+  queueDepth: () => number;
   repo: () => string | null;
   generate: Generate;
   waitUntil: (promise: Promise<unknown>) => void;
@@ -20,7 +21,12 @@ export class IncidentTracker {
 
   onTransition(transition: Transition): void {
     if (transition.to === "open") {
-      this.log.open(transition.at, this.deps.errorRate());
+      // Writes queued in the moments before the breaker opened belong to this outage too.
+      this.log.open(
+        transition.at,
+        this.deps.errorRate(),
+        this.deps.queueDepth(),
+      );
     }
     if (transition.to === "closed") {
       const closed = this.log.close(transition.at);

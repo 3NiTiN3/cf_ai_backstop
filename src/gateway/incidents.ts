@@ -51,13 +51,15 @@ export class IncidentLog {
     )`);
   }
 
-  open(at: number, errorRate: number): void {
+  open(at: number, errorRate: number, alreadyQueued = 0): void {
     if (this.current()) return;
     this.sql.exec(
-      "INSERT INTO incidents (id, started_at, peak_error_rate) VALUES (?, ?, ?)",
+      `INSERT INTO incidents (id, started_at, peak_error_rate, writes_queued)
+        VALUES (?, ?, ?, ?)`,
       crypto.randomUUID(),
       at,
       errorRate,
+      alreadyQueued,
     );
     this.prune();
   }

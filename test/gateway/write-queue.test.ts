@@ -9,6 +9,7 @@ import { WritePath } from "../../src/gateway/write-path";
 import { WriteQueue } from "../../src/gateway/write-queue";
 import { keyFromSecret, seal, unseal } from "../../src/security/crypto";
 import { okResult, route } from "./helpers";
+import { cacheLabel } from "../../src/gateway/responses";
 
 const COMMENTS = "/demo/gh/repos/demo/api/issues/1/comments";
 const MERGE = "/demo/gh/repos/demo/api/pulls/1/merge";
@@ -138,12 +139,13 @@ describe("WritePath", () => {
     withWrites(async ({ send, respond, calls }) => {
       respond(serverError);
       const headers = { "idempotency-key": "abc" };
-      const first = await queuedBody(
-        await send(COMMENTS, { body: "a" }, headers),
-      );
-      const again = await queuedBody(
-        await send(COMMENTS, { body: "b" }, headers),
-      );
+      const firstResponse = await send(COMMENTS, { body: "a" }, headers);
+      expect(cacheLabel(firstResponse)).toBe("QUEUED");
+      const first = await queuedBody(firstResponse);
+      const againResponse = await send(COMMENTS, { body: "b" }, headers);
+      expect(againResponse.headers.get("x-backstop-cache")).toBe("QUEUED");
+      expect(cacheLabel(againResponse)).toBe("DUPLICATE");
+      const again = await queuedBody(againResponse);
       expect(again.id).toBe(first.id);
       expect(calls).toHaveLength(1);
     }));

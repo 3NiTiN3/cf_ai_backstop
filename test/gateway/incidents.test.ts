@@ -78,6 +78,20 @@ describe("IncidentLog", () => {
       expect(log.list(10)).toHaveLength(1);
     }));
 
+  it("counts writes already waiting in the queue when it opens", () =>
+    withSql(async (sql) => {
+      const log = new IncidentLog(sql);
+      log.open(1_000, 0.5, 2);
+      log.observe(queued, 1);
+      log.observe(replayed, 0);
+      log.observe(replayed, 0);
+      log.observe(replayed, 0);
+      expect(log.close(9_000)).toMatchObject({
+        writesQueued: 3,
+        writesReplayed: 3,
+      });
+    }));
+
   it("credits successful replays to the latest incident after it closed", () =>
     withSql(async (sql) => {
       const log = new IncidentLog(sql);
@@ -101,6 +115,7 @@ describe("IncidentTracker", () => {
     const tracker = new IncidentTracker({
       sql,
       errorRate: () => 1,
+      queueDepth: () => 0,
       repo: () => "demo/api",
       generate,
       waitUntil: (promise) => pending.push(promise),

@@ -61,7 +61,7 @@ export class WritePath {
 
   private async queueOrSend(write: PendingWrite): Promise<Response> {
     const existing = this.queue.findByKey(write.idempotencyKey);
-    if (existing) return this.accepted(existing);
+    if (existing) return this.accepted(existing, true);
     // Later writes must not overtake writes that are still waiting.
     if (this.deps.paused() || this.queue.hasWaiting()) {
       return this.enqueue(write);
@@ -86,8 +86,13 @@ export class WritePath {
     return this.accepted(stored);
   }
 
-  private accepted(write: QueuedWrite): Response {
-    return queued(write.id, this.queue.position(write), write.status);
+  private accepted(write: QueuedWrite, duplicate = false): Response {
+    return queued(
+      write.id,
+      this.queue.position(write),
+      write.status,
+      duplicate,
+    );
   }
 
   private send(

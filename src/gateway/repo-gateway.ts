@@ -12,7 +12,7 @@ import { IncidentTracker } from "./incident-tracker";
 import type { Incident } from "./incidents";
 import { ReadThroughCache } from "./read-through";
 import { REGISTRY_NAME } from "./registry";
-import { MODE_HEADER } from "./responses";
+import { MODE_HEADER, cacheLabel } from "./responses";
 import type { GatewayRoute, Namespace } from "./routes";
 import { RepoReporter } from "./repo-reporter";
 import { TIMELINE_LIMIT, buildTimeline, type TimelineEntry } from "./timeline";
@@ -49,6 +49,7 @@ export class RepoGateway extends DurableObject<Env> {
   private readonly incidents = new IncidentTracker({
     sql: this.ctx.storage.sql,
     errorRate: () => this.health.snapshot().errorRate,
+    queueDepth: () => this.writes.queueDepth(),
     repo: () => this.route?.repoKey ?? null,
     generate: workersAiGenerator(this.env.AI),
     waitUntil: (promise) => this.ctx.waitUntil(promise),
@@ -244,9 +245,4 @@ export class RepoGateway extends DurableObject<Env> {
     this.reporter.reportNow();
     if (transition.to === "closed") this.writes.onRecovered();
   }
-}
-
-function cacheLabel(response: Response): string {
-  if (response.headers.get("x-backstop-coalesced") === "1") return "COALESCED";
-  return response.headers.get("x-backstop-cache") ?? "NONE";
 }
