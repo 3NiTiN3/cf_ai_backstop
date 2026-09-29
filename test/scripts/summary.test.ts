@@ -41,6 +41,8 @@ it("classifies gateway responses and counts calls avoided", () => {
     avoidedPercent: 57.1,
     p50Ms: 8,
     p95Ms: 120,
+    hitP50Ms: 5,
+    hitP95Ms: 6,
   });
 });
 

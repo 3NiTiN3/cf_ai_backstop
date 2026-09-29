@@ -18,6 +18,8 @@ export interface Summary {
   avoidedPercent: number;
   p50Ms: number | null;
   p95Ms: number | null;
+  hitP50Ms: number | null;
+  hitP95Ms: number | null;
 }
 
 const UPSTREAM = new Set(["MISS", "REVALIDATED", "BYPASS"]);
@@ -41,9 +43,10 @@ export function summarize(samples: Sample[]): Summary {
       (sample.cache === null || UPSTREAM.has(sample.cache)),
   );
   const avoided = hits + coalesced + stale;
-  const latencies = samples
-    .map((sample) => sample.latencyMs)
-    .sort((a, b) => a - b);
+  const latencies = sortedLatencies(samples);
+  const hitLatencies = sortedLatencies(
+    samples.filter((sample) => !sample.coalesced && sample.cache === "HIT"),
+  );
   return {
     requests: samples.length,
     hits,
@@ -62,6 +65,8 @@ export function summarize(samples: Sample[]): Summary {
         : Math.round((avoided / (avoided + upstreamCalls)) * 1000) / 10,
     p50Ms: percentile(latencies, 0.5),
     p95Ms: percentile(latencies, 0.95),
+    hitP50Ms: percentile(hitLatencies, 0.5),
+    hitP95Ms: percentile(hitLatencies, 0.95),
   };
 }
 
@@ -79,11 +84,17 @@ export function formatSummary(summary: Summary): string {
     ["Upstream calls avoided", `${summary.avoidedPercent}%`],
     ["Gateway latency p50", milliseconds(summary.p50Ms)],
     ["Gateway latency p95", milliseconds(summary.p95Ms)],
+    ["Cache hit latency p50", milliseconds(summary.hitP50Ms)],
+    ["Cache hit latency p95", milliseconds(summary.hitP95Ms)],
   ];
   const width = Math.max(...rows.map(([label]) => label.length));
   return rows
     .map(([label, value]) => `${label.padEnd(width)}  ${value}`)
     .join("\n");
+}
+
+function sortedLatencies(samples: Sample[]): number[] {
+  return samples.map((sample) => sample.latencyMs).sort((a, b) => a - b);
 }
 
 function servedFromGateway(sample: Sample): boolean {
