@@ -19,6 +19,7 @@ import { requestedNamespace } from "./agent/inputs";
 import { handleApiRequest } from "./api/handler";
 import { handleGatewayRequest } from "./gateway/handler";
 import { handleMcpRequest } from "./mcp/handler";
+import { isCrossSite } from "./security/origin";
 import { jsonError } from "./gateway/responses";
 
 export { RepoGateway } from "./gateway/repo-gateway";
@@ -75,12 +76,23 @@ export class OpsAgent extends AIChatAgent<Env, OpsState> {
   }
 }
 
+const AGENTS_PREFIX = "/agents/";
+
+// WebSockets skip CORS, so without this any site could drive the chat, and spend
+// Workers AI, from a visitor's browser.
+function crossSiteAgent(request: Request): Response | null {
+  const { pathname } = new URL(request.url);
+  if (!pathname.startsWith(AGENTS_PREFIX) || !isCrossSite(request)) return null;
+  return jsonError(403, "The ops chat only accepts requests from this site");
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return (
       (await handleGatewayRequest(request, env)) ??
       (await handleMcpRequest(request, env, ctx)) ??
       (await handleApiRequest(request, env)) ??
+      crossSiteAgent(request) ??
       (await routeAgentRequest(request, env)) ??
       jsonError(404, "Not Found")
     );

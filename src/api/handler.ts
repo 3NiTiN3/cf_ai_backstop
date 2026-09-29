@@ -1,5 +1,6 @@
 import { REGISTRY_NAME } from "../gateway/registry";
 import { jsonError } from "../gateway/responses";
+import { isJsonRequest } from "../security/origin";
 import { bodyTooLarge } from "./body";
 import { getChaos, postChaos } from "./chaos";
 import { handleDemoRequest, isDemoPath } from "./demo";
@@ -16,6 +17,12 @@ export async function handleApiRequest(
 ): Promise<Response | null> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/")) return null;
+  if (request.method === "POST" && !isJsonRequest(request)) {
+    return jsonError(
+      415,
+      "POST requests must send Content-Type: application/json",
+    );
+  }
   return bodyTooLarge(request) ?? route(request, url, env);
 }
 

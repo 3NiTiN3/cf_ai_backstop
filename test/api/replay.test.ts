@@ -6,7 +6,10 @@ const API = "http://backstop.test/api/repos";
 const GH = "http://backstop.test/demo/gh/repos/demo/web";
 
 function post(path: string, headers: HeadersInit = {}): Promise<Response> {
-  return exports.default.fetch(`${API}${path}`, { method: "POST", headers });
+  return exports.default.fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+  });
 }
 
 async function registerRepo(): Promise<void> {

@@ -28,7 +28,11 @@ describe("POST /api/dev/eval", () => {
     expect(env.ENVIRONMENT).toBe("production");
     const response = await exports.default.fetch(
       "http://backstop.test/api/dev/eval",
-      { method: "POST", body: JSON.stringify({ question: "hi" }) },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: "hi" }),
+      },
     );
     expect(response.status).toBe(404);
     await response.body?.cancel();

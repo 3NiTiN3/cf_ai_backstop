@@ -79,6 +79,7 @@ describe("incidents API", () => {
     );
     const post = await exports.default.fetch(`${BASE}/api/incidents`, {
       method: "POST",
+      headers: { "content-type": "application/json" },
     });
     expect(post.status).toBe(405);
     await post.body?.cancel();

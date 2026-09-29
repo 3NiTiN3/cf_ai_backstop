@@ -13,7 +13,10 @@ interface Listing {
 }
 
 function post(path: string, headers: HeadersInit = {}): Promise<Response> {
-  return exports.default.fetch(`${API}${path}`, { method: "POST", headers });
+  return exports.default.fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+  });
 }
 
 async function pausedRepoWithWrite(body: string): Promise<string> {
@@ -131,7 +134,7 @@ describe("queue API on live", () => {
     for (const action of ["retry", "drop"]) {
       const response = await exports.default.fetch(
         `http://backstop.test/api/repos/live/octo/app/queue/abc/${action}`,
-        { method: "POST" },
+        { method: "POST", headers: { "content-type": "application/json" } },
       );
       expect(response.status).toBe(401);
       await response.body?.cancel();
@@ -141,7 +144,10 @@ describe("queue API on live", () => {
   it("accepts the admin token and then checks the repo", async () => {
     const response = await exports.default.fetch(
       "http://backstop.test/api/repos/live/octo/app/queue/abc/drop",
-      { method: "POST", headers: ADMIN },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...ADMIN },
+      },
     );
     expect(response.status).toBe(404);
     await response.body?.cancel();

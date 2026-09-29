@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { readTextLimited } from "../shared/read-limited";
 import type { SealedText } from "../security/crypto";
 import { sha256Hex } from "../shared/hash";
 import { authScope } from "./cache";
@@ -14,6 +15,7 @@ import type { GatewayRoute, Namespace } from "./routes";
 import { toUpstreamRequest, type UpstreamResult } from "./upstream";
 import { classifyWrite } from "./write-policy";
 import type { QueuedWrite, WriteQueue } from "./write-queue";
+import { MAX_WRITE_BODY_BYTES, writeTooLarge } from "./write-limits";
 
 export interface WriteDeps {
   now: () => number;
@@ -41,7 +43,8 @@ export class WritePath {
   ) {}
 
   async handle(request: Request, route: GatewayRoute): Promise<Response> {
-    const body = await request.text();
+    const body = await readTextLimited(request, MAX_WRITE_BODY_BYTES);
+    if (body === null) return writeTooLarge();
     const write = classifyWrite(request.method, route.upstreamPath, body);
     if (!write.queueable) {
       if (this.deps.mode() === "degraded") {

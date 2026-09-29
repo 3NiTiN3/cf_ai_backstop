@@ -125,6 +125,7 @@ describe("body size limit", () => {
     });
     const response = await exports.default.fetch(URL_BASE, {
       method: "POST",
+      headers: { "content-type": "application/json" },
       body: stream,
     });
     expect(response.status).toBe(413);
