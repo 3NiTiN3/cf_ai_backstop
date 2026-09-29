@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { Banner } from "@cloudflare/kumo";
-import { KeyIcon } from "@phosphor-icons/react";
 import type { Namespace } from "../gateway/routes";
-import { AdminToken } from "./admin-token";
 import { ChaosPanel } from "./chaos-panel";
 import { EventTimeline } from "./event-timeline";
+import { LiveBar } from "./live-bar";
 import { OverviewCards } from "./overview-cards";
 import { QueuePanel } from "./queue-panel";
 import { RepoPanel } from "./repo-panel";
+import { Section } from "./section";
 import { pickRepo, repoRows } from "./repo-rows";
 import { useOverview } from "./use-overview";
 
@@ -21,18 +20,10 @@ export function Dashboard({ namespace }: { namespace: Namespace }) {
   return (
     <section
       aria-label="Gateway dashboard"
-      className="px-4 sm:px-6 py-5 space-y-6"
+      className="space-y-6 px-4 py-4 sm:px-6"
     >
       {namespace === "live" && (
-        <div className="space-y-3">
-          <Banner
-            variant="alert"
-            icon={<KeyIcon size={18} />}
-            title="Live namespace"
-            description="This shows real traffic. Chaos, queue and replay controls need an admin token."
-          />
-          <AdminToken value={adminToken} onChange={setAdminToken} />
-        </div>
+        <LiveBar adminToken={adminToken} onAdminTokenChange={setAdminToken} />
       )}
       <OverviewCards data={overview.data} error={overview.error} />
       <ChaosPanel namespace={namespace} adminToken={adminToken} />
@@ -44,14 +35,16 @@ export function Dashboard({ namespace }: { namespace: Namespace }) {
         onSelect={setSelected}
       />
       {repoKey && (
-        <>
-          <QueuePanel
-            namespace={namespace}
-            repoKey={repoKey}
-            adminToken={adminToken}
-          />
-          <EventTimeline namespace={namespace} repoKey={repoKey} />
-        </>
+        <Section id="repo-heading" title={repoKey}>
+          <div className="space-y-4">
+            <QueuePanel
+              namespace={namespace}
+              repoKey={repoKey}
+              adminToken={adminToken}
+            />
+            <EventTimeline namespace={namespace} repoKey={repoKey} />
+          </div>
+        </Section>
       )}
     </section>
   );

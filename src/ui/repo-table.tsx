@@ -9,7 +9,7 @@ const HEADERS = [
   "p95",
   "Hit rate",
   "Queue",
-  "Errors, last 5 min",
+  "Last 5 min",
 ];
 
 export function RepoTable({
@@ -53,7 +53,7 @@ export function RepoTable({
                   <button
                     type="button"
                     aria-pressed={isSelected}
-                    className="text-kumo-default hover:underline whitespace-nowrap rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-ring"
+                    className="text-kumo-default hover:underline whitespace-nowrap rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus"
                   >
                     {row.repoKey}
                   </button>

@@ -1,5 +1,6 @@
 import type { Namespace } from "../gateway/routes";
 import { PanelBody } from "./panel-body";
+import { Section } from "./section";
 import type { RepoRow } from "./repo-rows";
 import { RepoTable } from "./repo-table";
 
@@ -18,28 +19,22 @@ export function RepoPanel({
 }) {
   const prefix = namespace === "demo" ? "/demo/gh" : "/gh";
   return (
-    <section aria-labelledby="repos-heading" className="space-y-2">
-      <h2
-        id="repos-heading"
-        className="text-sm font-semibold text-kumo-default"
-      >
-        Repos
-      </h2>
+    <Section id="repos-heading" title="Repos">
       <PanelBody data={rows} error={error} what="repos" skeletonClass="h-40">
         {(loaded) =>
           loaded.length === 0 ? (
             <p className="text-sm text-kumo-subtle">
-              No traffic yet. Send a GitHub API request through{" "}
+              No traffic yet. Send a request through{" "}
               <code className="text-kumo-default">
                 {prefix}/repos/owner/name
-              </code>{" "}
-              to see it here.
+              </code>
+              .
             </p>
           ) : (
             <RepoTable rows={loaded} selected={selected} onSelect={onSelect} />
           )
         }
       </PanelBody>
-    </section>
+    </Section>
   );
 }

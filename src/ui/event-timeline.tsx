@@ -1,7 +1,15 @@
-import { Badge } from "@cloudflare/kumo";
 import type { Namespace } from "../gateway/routes";
 import { PanelBody } from "./panel-body";
+import { Section } from "./section";
 import { useTimeline, type TimelineEntry } from "./timeline-data";
+
+const KIND_DOTS: Record<TimelineEntry["kind"], string> = {
+  breaker: "bg-kumo-warning",
+  chaos: "bg-kumo-info",
+  queue: "bg-kumo-fill",
+  replay: "bg-kumo-success",
+  incident: "bg-kumo-danger",
+};
 
 const KIND_LABELS: Record<TimelineEntry["kind"], string> = {
   breaker: "Breaker",
@@ -21,13 +29,7 @@ export function EventTimeline({
   const { data, error } = useTimeline(namespace, repoKey);
 
   return (
-    <section aria-labelledby="timeline-heading" className="space-y-2">
-      <h2
-        id="timeline-heading"
-        className="text-sm font-semibold text-kumo-default"
-      >
-        Timeline for {repoKey}
-      </h2>
+    <Section id="timeline-heading" title="Timeline" level={3}>
       <PanelBody
         data={data}
         error={error}
@@ -36,27 +38,29 @@ export function EventTimeline({
       >
         {(entries) =>
           entries.length === 0 ? (
-            <p className="text-sm text-kumo-subtle">
-              No breaker, chaos, queue or incident events for this repo yet.
-            </p>
+            <p className="text-sm text-kumo-subtle">No events yet.</p>
           ) : (
             <ol
               tabIndex={0}
               aria-label={`Events for ${repoKey}, newest first`}
-              className="max-h-96 overflow-y-auto rounded-xl border border-kumo-line bg-kumo-base divide-y divide-kumo-line focus-visible:outline-2 focus-visible:outline-kumo-ring"
+              className="relative max-h-96 overflow-y-auto rounded-xl border border-kumo-line bg-kumo-base divide-y divide-kumo-line focus-visible:outline-2 focus-visible:outline-kumo-focus"
             >
               {entries.map((entry, index) => (
                 <li
                   key={`${entry.at}-${index}`}
-                  className="flex items-start gap-3 px-4 py-2 text-sm"
+                  className="flex items-baseline gap-3 px-3 py-2 text-sm"
                 >
                   <time
                     dateTime={new Date(entry.at).toISOString()}
-                    className="shrink-0 w-16 tabular-nums text-xs text-kumo-subtle pt-0.5"
+                    className="w-16 shrink-0 text-xs tabular-nums text-kumo-subtle"
                   >
                     {clock(entry.at)}
                   </time>
-                  <Badge variant="secondary">{KIND_LABELS[entry.kind]}</Badge>
+                  <span
+                    aria-hidden
+                    className={`size-1.5 shrink-0 translate-y-[-1px] rounded-full ${KIND_DOTS[entry.kind]}`}
+                  />
+                  <span className="sr-only">{KIND_LABELS[entry.kind]}:</span>
                   <span className="min-w-0 break-words text-kumo-default">
                     {entry.text}
                   </span>
@@ -66,7 +70,7 @@ export function EventTimeline({
           )
         }
       </PanelBody>
-    </section>
+    </Section>
   );
 }
 

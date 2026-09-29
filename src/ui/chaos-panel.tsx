@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "@cloudflare/kumo";
 import type { Namespace } from "../gateway/routes";
 import {
   CHAOS_PRESETS,
@@ -7,6 +6,8 @@ import {
   useChaos,
   type ChaosPreset,
 } from "./chaos-data";
+import { Section } from "./section";
+import { Segmented } from "./segmented";
 
 export function ChaosPanel({
   namespace,
@@ -34,42 +35,30 @@ export function ChaosPanel({
   };
 
   return (
-    <section aria-labelledby="chaos-heading" className="space-y-2">
-      <h2
-        id="chaos-heading"
-        className="text-sm font-semibold text-kumo-default"
-      >
-        Chaos
-      </h2>
-      <p className="text-xs text-kumo-subtle">
-        Inject faults into calls to GitHub for the whole {namespace} namespace.
-        {locked && " Enter the admin token above to change live chaos."}
-      </p>
-      <div
-        role="group"
-        aria-label="Chaos mode"
-        className="flex flex-wrap gap-2"
-      >
-        {CHAOS_PRESETS.map((preset) => {
-          const active = chaos.data?.mode === preset.mode;
-          return (
-            <Button
-              key={preset.mode}
-              variant={active ? "primary" : "secondary"}
-              aria-pressed={active}
-              disabled={locked || busy}
-              onClick={() => void apply(preset)}
-            >
-              {preset.label}
-            </Button>
-          );
-        })}
-      </div>
+    <Section
+      id="chaos-heading"
+      title="Chaos"
+      aside={
+        <Segmented
+          label="Chaos mode"
+          options={CHAOS_PRESETS.map(({ mode, label }) => ({
+            value: mode,
+            label,
+          }))}
+          value={chaos.data?.mode ?? null}
+          disabled={locked || busy}
+          onChange={(mode) => {
+            const preset = CHAOS_PRESETS.find((item) => item.mode === mode);
+            if (preset) void apply(preset);
+          }}
+        />
+      }
+    >
       {(failure ?? chaos.error) && (
         <p role="status" className="text-xs text-kumo-danger">
           {failure ?? `Could not load chaos settings: ${chaos.error}`}
         </p>
       )}
-    </section>
+    </Section>
   );
 }

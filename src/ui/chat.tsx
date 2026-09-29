@@ -2,18 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import type { UIMessage } from "ai";
-import {
-  Banner,
-  Button,
-  Empty,
-  InputArea,
-  PoweredByCloudflare,
-  Switch,
-  Text,
-} from "@cloudflare/kumo";
+import { Banner, Button, InputArea, Switch, Text } from "@cloudflare/kumo";
 import {
   BugIcon,
-  ChatCircleDotsIcon,
   CircleIcon,
   PaperPlaneRightIcon,
   StopIcon,
@@ -125,15 +116,14 @@ export function Chat({ namespace }: { namespace: Namespace }) {
         role="log"
         aria-label="Chat messages"
         tabIndex={0}
-        className="flex-1 overflow-y-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-ring"
+        className="relative flex-1 overflow-y-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-focus"
       >
         <div className="px-4 py-5 space-y-5">
           {messages.length === 0 && (
-            <Empty
-              icon={<ChatCircleDotsIcon size={32} />}
-              title="Ask about the gateway"
-              description="Try asking whether demo/api is healthy, or what just happened."
-            />
+            <p className="pt-8 text-center text-sm text-kumo-subtle">
+              Ask about the gateway, for example &ldquo;Is demo/api
+              healthy?&rdquo;
+            </p>
           )}
 
           {messages.map((message: UIMessage, index: number) => {
@@ -190,7 +180,7 @@ export function Chat({ namespace }: { namespace: Namespace }) {
           }}
           className="px-4 py-3"
         >
-          <div className="flex items-end gap-3 rounded-xl border border-kumo-line bg-kumo-base p-3 shadow-sm focus-within:ring-2 focus-within:ring-kumo-ring focus-within:border-transparent transition-shadow">
+          <div className="flex items-end gap-3 rounded-xl border border-kumo-line bg-kumo-base p-3 shadow-sm focus-within:ring-2 focus-within:ring-kumo-focus focus-within:border-transparent transition-shadow">
             <InputArea
               ref={textareaRef}
               value={input}
@@ -234,9 +224,6 @@ export function Chat({ namespace }: { namespace: Namespace }) {
             )}
           </div>
         </form>
-        <div className="flex justify-center pb-3">
-          <PoweredByCloudflare href="https://developers.cloudflare.com/agents/" />
-        </div>
       </div>
     </div>
   );

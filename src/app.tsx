@@ -11,7 +11,7 @@ export default function App() {
     <div className="flex flex-col min-h-screen lg:h-screen bg-kumo-elevated">
       <Header namespace={namespace} onNamespaceChange={setNamespace} />
       <main className="flex-1 grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_32rem]">
-        <div className="min-w-0 lg:overflow-y-auto">
+        <div className="relative min-w-0 lg:overflow-y-auto">
           <Dashboard namespace={namespace} />
         </div>
         <aside

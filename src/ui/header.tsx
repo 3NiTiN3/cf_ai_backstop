@@ -10,20 +10,18 @@ export function Header({
   onNamespaceChange: (namespace: Namespace) => void;
 }) {
   return (
-    <header className="px-4 sm:px-6 py-3 bg-kumo-base border-b border-kumo-line">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-kumo-default">Backstop</h1>
-          <p className="text-sm text-kumo-subtle">
-            A gateway between AI coding agents and GitHub. It caches reads,
-            serves stale data during outages and replays queued writes when
-            GitHub recovers.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <NamespaceSwitch value={namespace} onChange={onNamespaceChange} />
-          <ThemeToggle />
-        </div>
+    <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-kumo-line bg-kumo-base/80 px-4 backdrop-blur-md sm:px-6">
+      <div className="flex min-w-0 items-baseline gap-3">
+        <h1 className="text-base font-semibold tracking-tight text-kumo-default">
+          Backstop
+        </h1>
+        <p className="hidden truncate text-sm text-kumo-subtle sm:block">
+          Resilience gateway between AI agents and the GitHub API
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <NamespaceSwitch value={namespace} onChange={onNamespaceChange} />
+        <ThemeToggle />
       </div>
     </header>
   );

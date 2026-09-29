@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Badge, Button } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo";
 import type { Namespace } from "../gateway/routes";
 import { PanelBody } from "./panel-body";
+import { Section } from "./section";
 import {
   actionsFor,
   changeQueuedWrite,
@@ -46,16 +47,18 @@ export function QueuePanel({
   };
 
   return (
-    <section aria-labelledby="queue-heading" className="space-y-2">
-      <h2
-        id="queue-heading"
-        className="text-sm font-semibold text-kumo-default"
-      >
-        Write queue for {repoKey}
-      </h2>
-      {queue.data && (
-        <p className="text-xs text-kumo-subtle">{queueSummary(queue.data)}</p>
-      )}
+    <Section
+      id="queue-heading"
+      title="Queue"
+      level={3}
+      aside={
+        queue.data && (
+          <span className="text-xs text-kumo-subtle">
+            {queueSummary(queue.data)}
+          </span>
+        )
+      }
+    >
       {failure && (
         <p role="alert" className="text-xs text-kumo-danger">
           {failure}
@@ -69,10 +72,7 @@ export function QueuePanel({
       >
         {({ items }) =>
           items.length === 0 ? (
-            <p className="text-sm text-kumo-subtle">
-              No queued writes. Safe writes are queued here while the breaker is
-              open.
-            </p>
+            <p className="text-sm text-kumo-subtle">No queued writes.</p>
           ) : (
             <ul className="rounded-xl border border-kumo-line bg-kumo-base divide-y divide-kumo-line">
               {items.slice(0, MAX_SHOWN).map((entry) => (
@@ -87,7 +87,7 @@ export function QueuePanel({
           )
         }
       </PanelBody>
-    </section>
+    </Section>
   );
 }
 
@@ -101,8 +101,10 @@ function QueueItem({
   onAction: (action: QueueAction) => void;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
-      <Badge variant="secondary">{statusLabel(entry)}</Badge>
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+      <span className="w-16 shrink-0 text-xs text-kumo-subtle">
+        {statusLabel(entry)}
+      </span>
       <span className="min-w-0 flex-1 break-all text-kumo-default">
         {entry.method} {entry.path}
       </span>
