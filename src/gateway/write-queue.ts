@@ -58,6 +58,8 @@ const TokenRow = z.object({
 
 const Count = z.object({ count: z.number() });
 
+const Oldest = z.object({ oldest: z.number().nullable() });
+
 const ClaimedRow = z.object({ id: z.string(), seq: z.number() });
 
 const WRITE_COLUMNS =
@@ -179,6 +181,15 @@ export class WriteQueue {
       )
       .one();
     return Count.parse(row).count;
+  }
+
+  oldestWaitingAt(): number | null {
+    const row = this.sql
+      .exec(
+        `SELECT MIN(created_at) AS oldest FROM write_queue WHERE ${WAITING}`,
+      )
+      .one();
+    return Oldest.parse(row).oldest;
   }
 
   hasWaiting(): boolean {

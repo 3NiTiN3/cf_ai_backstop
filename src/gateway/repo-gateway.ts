@@ -50,6 +50,7 @@ export class RepoGateway extends DurableObject<Env> {
     sql: this.ctx.storage.sql,
     errorRate: () => this.health.snapshot().errorRate,
     queueDepth: () => this.writes.queueDepth(),
+    oldestWaitingAt: () => this.writes.oldestWaitingAt(),
     repo: () => this.route?.repoKey ?? null,
     generate: workersAiGenerator(this.env.AI),
     waitUntil: (promise) => this.ctx.waitUntil(promise),

@@ -7,6 +7,7 @@ export interface IncidentTrackerDeps {
   sql: SqlStorage;
   errorRate: () => number;
   queueDepth: () => number;
+  oldestWaitingAt: () => number | null;
   repo: () => string | null;
   generate: Generate;
   waitUntil: (promise: Promise<unknown>) => void;
@@ -35,7 +36,7 @@ export class IncidentTracker {
   }
 
   observe(event: GatewayEvent): void {
-    this.log.observe(event, this.deps.errorRate(), this.deps.queueDepth() > 1);
+    this.log.observe(event, this.deps.errorRate(), this.deps.oldestWaitingAt());
   }
 
   list(limit: number): Incident[] {

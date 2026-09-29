@@ -99,15 +99,34 @@ describe("IncidentLog", () => {
       log.observe(queued, 1);
       log.observe(queued, 1);
       log.close(2_000);
-      log.observe(queued, 0, true);
+      log.observe(queued, 0, 1_500);
       log.observe(replayed, 0);
       log.observe(replayed, 0);
       log.observe(replayed, 0);
-      log.observe(queued, 0, false);
+      log.observe(queued, 0, null);
       expect(log.list(1)[0]).toMatchObject({
         writesQueued: 3,
         writesReplayed: 3,
       });
+    }));
+
+  it("leaves a backlog that started after it ended to the next incident", () =>
+    withSql(async (sql) => {
+      const log = new IncidentLog(sql);
+      log.open(1_000, 1);
+      log.observe(queued, 1);
+      log.close(2_000);
+      log.observe(replayed, 0);
+      log.observe(queued, 0, 5_000);
+      log.observe(queued, 0, 5_000);
+      log.open(6_000, 1, 2);
+      log.observe(replayed, 0);
+      log.observe(replayed, 0);
+      log.close(7_000);
+
+      const [latest, earlier] = log.list(10);
+      expect(earlier).toMatchObject({ writesQueued: 1, writesReplayed: 1 });
+      expect(latest).toMatchObject({ writesQueued: 2, writesReplayed: 2 });
     }));
 
   it("credits successful replays to the latest incident after it closed", () =>
@@ -134,6 +153,7 @@ describe("IncidentTracker", () => {
       sql,
       errorRate: () => 1,
       queueDepth: () => 0,
+      oldestWaitingAt: () => null,
       repo: () => "demo/api",
       generate,
       waitUntil: (promise) => pending.push(promise),

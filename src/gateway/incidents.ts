@@ -77,7 +77,11 @@ export class IncidentLog {
     return { ...open, endedAt: at };
   }
 
-  observe(event: GatewayEvent, errorRate: number, draining = false): void {
+  observe(
+    event: GatewayEvent,
+    errorRate: number,
+    oldestWaitingAt: number | null = null,
+  ): void {
     const open = this.current();
     if (open) {
       this.sql.exec(
@@ -92,10 +96,13 @@ export class IncidentLog {
         open.id,
       );
     }
-    if (!open && draining && isQueuedWrite(event)) {
-      // Writes that queue behind the backlog while it drains are part of the same outage.
+    if (!open && oldestWaitingAt !== null && isQueuedWrite(event)) {
+      // Writes that queue behind a backlog left by the latest outage belong to it.
+      // A backlog that started after it ended belongs to the next outage instead.
       this.sql.exec(
-        `UPDATE incidents SET writes_queued = writes_queued + 1 WHERE id = (${LATEST})`,
+        `UPDATE incidents SET writes_queued = writes_queued + 1
+          WHERE id = (${LATEST}) AND ended_at >= ?`,
+        oldestWaitingAt,
       );
     }
     if (isReplayed(event)) {
