@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { jsonError } from "../gateway/responses";
 import { declaredTooLarge, readTextLimited } from "../shared/read-limited";
 
-export const MAX_BODY_BYTES = 16 * 1024;
+const MAX_BODY_BYTES = 16 * 1024;
 
 export type Parsed<T> = { ok: true; data: T } | { ok: false; error: Response };
 
@@ -29,7 +29,7 @@ export async function readJson<T>(
   return { ok: true, data: parsed.data };
 }
 
-export function describeIssues(error: z.ZodError): string {
+function describeIssues(error: z.ZodError): string {
   return error.issues
     .map((issue) => {
       const path = issue.path.join(".");

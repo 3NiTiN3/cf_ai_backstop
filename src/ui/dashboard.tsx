@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Namespace } from "../gateway/routes";
 import { ControlBar } from "./control-bar";
 import { IncidentList } from "./incident-list";
-import { OverviewCards } from "./overview-cards";
+import { TrafficFigures } from "./traffic-figures";
 import type { OverviewData } from "./overview-data";
 import { RepoActivity } from "./repo-activity";
 import { RepoPanel } from "./repo-panel";
@@ -60,7 +60,7 @@ export function Dashboard({
       <TabPanel id="dashboard" value={tab}>
         {tab === "overview" && (
           <>
-            <OverviewCards data={overview.data} error={overview.error} />
+            <TrafficFigures data={overview.data} error={overview.error} />
             <RepoPanel
               namespace={namespace}
               rows={rows}

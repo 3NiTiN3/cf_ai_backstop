@@ -27,7 +27,7 @@ export function okResult(
   };
 }
 
-export interface FakeUpstream {
+interface FakeUpstream {
   calls: Request[];
   respond: (request: Request) => UpstreamResult | Promise<UpstreamResult>;
 }

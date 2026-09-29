@@ -8,12 +8,12 @@ import { NonRetryableError } from "cloudflare:workflows";
 import type { RepoGateway } from "../gateway/repo-gateway";
 import { durableObjectName, type Namespace } from "../gateway/routes";
 
-export interface ReplayParams {
+interface ReplayParams {
   namespace: Namespace;
   repoKey: string;
 }
 
-export interface ReplaySummary {
+interface ReplaySummary {
   sent: number;
   failed: number;
   stopped: boolean;

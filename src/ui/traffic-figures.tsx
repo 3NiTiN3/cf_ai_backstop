@@ -1,14 +1,14 @@
 import { overviewStats, type OverviewData } from "./overview-data";
 import { Section } from "./section";
-import { StatCard } from "./stat-card";
+import { Stat } from "./stat";
 import type { Polled } from "./use-poll";
 
-export function OverviewCards({ data, error }: Polled<OverviewData>) {
+export function TrafficFigures({ data, error }: Polled<OverviewData>) {
   return (
     <Section id="overview-heading" title="Traffic">
       <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl border border-kumo-line bg-kumo-base px-4 py-3 sm:grid-cols-3 xl:grid-cols-5">
         {overviewStats(data).map((stat) => (
-          <StatCard
+          <Stat
             key={stat.label}
             {...stat}
             detail={stat.detail ?? (error ? "Not available" : null)}

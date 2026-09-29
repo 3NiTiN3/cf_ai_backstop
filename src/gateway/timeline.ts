@@ -5,8 +5,7 @@ import type { Incident } from "./incidents";
 
 export const TIMELINE_LIMIT = 50;
 
-export type TimelineKind =
-  "breaker" | "chaos" | "queue" | "replay" | "incident";
+type TimelineKind = "breaker" | "chaos" | "queue" | "replay" | "incident";
 
 export interface TimelineEntry {
   at: number;

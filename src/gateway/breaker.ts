@@ -13,7 +13,7 @@ export const TRANSITION_REASONS = [
   "cooldown_elapsed",
 ] as const;
 
-export type TransitionReason = (typeof TRANSITION_REASONS)[number];
+type TransitionReason = (typeof TRANSITION_REASONS)[number];
 
 export interface Breaker {
   state: BreakerState;

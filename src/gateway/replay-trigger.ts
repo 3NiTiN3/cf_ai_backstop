@@ -14,7 +14,7 @@ export type StartResult =
   | { started: false; reason: "paused" | "empty" }
   | { started: false; reason: "running"; instanceId: string };
 
-export interface ReplayRunner {
+interface ReplayRunner {
   create: (target: ReplayTarget) => Promise<string>;
   status: (instanceId: string) => Promise<string | null>;
 }

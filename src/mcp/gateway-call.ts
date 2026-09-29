@@ -2,7 +2,7 @@ import { z } from "zod";
 import { handleGatewayRequest } from "../gateway/handler";
 import type { Namespace } from "../gateway/routes";
 
-export const MAX_BODY_CHARS = 20_000;
+const MAX_BODY_CHARS = 20_000;
 
 const INTERNAL_ORIGIN = "https://backstop.internal";
 

@@ -1,6 +1,6 @@
 export type Namespace = "live" | "demo";
 
-export const GLOBAL_REPO_KEY = "_global";
+const GLOBAL_REPO_KEY = "_global";
 
 export interface GatewayRoute {
   namespace: Namespace;

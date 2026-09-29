@@ -20,7 +20,7 @@ export interface RepoSummary extends CounterTotals {
   errorHistory: (number | null)[];
 }
 
-export interface OverviewTotals extends CounterTotals {
+interface OverviewTotals extends CounterTotals {
   avoidedRatio: number;
   cacheHitRatio: number;
   requestsPerMinute: number;

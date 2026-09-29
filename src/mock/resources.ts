@@ -85,7 +85,7 @@ function pullObject(spec: RepoSpec, title: string, i: number) {
   };
 }
 
-export function commitShas(spec: RepoSpec): string[] {
+function commitShas(spec: RepoSpec): string[] {
   return spec.commits.map((_, i) => fakeSha(`${fullName(spec)}:commit:${i}`));
 }
 

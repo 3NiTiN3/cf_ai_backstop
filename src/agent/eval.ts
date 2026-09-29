@@ -4,7 +4,7 @@ import { buildSystemPrompt } from "./prompt";
 import { INITIAL_OPS_STATE } from "./state";
 import { createAgentTools } from "./toolset";
 
-export interface ChosenCall {
+interface ChosenCall {
   toolName: string;
   input: unknown;
 }

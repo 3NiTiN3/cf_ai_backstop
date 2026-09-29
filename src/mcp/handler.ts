@@ -2,7 +2,7 @@ import { createMcpHandler } from "agents/mcp";
 import { createBackstopServer } from "./server";
 import { TOKEN_HEADER } from "./tools";
 
-export const MCP_PATH = "/mcp";
+const MCP_PATH = "/mcp";
 
 export function handleMcpRequest(
   request: Request,

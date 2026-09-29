@@ -1,6 +1,6 @@
 import type { OverviewStat } from "./overview-data";
 
-export function StatCard({ label, value, detail, alert }: OverviewStat) {
+export function Stat({ label, value, detail, alert }: OverviewStat) {
   return (
     <div className="min-w-0">
       <p className="text-caption text-kumo-subtle">{label}</p>

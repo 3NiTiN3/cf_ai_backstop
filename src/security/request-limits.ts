@@ -48,7 +48,7 @@ export async function limitRequest(
   return success ? null : tooManyRequests(rule.periodSeconds);
 }
 
-export function tooManyRequests(retryAfterSeconds: number): Response {
+function tooManyRequests(retryAfterSeconds: number): Response {
   return Response.json(
     {
       message: "Too many requests. Please slow down and try again shortly.",

@@ -14,7 +14,7 @@ export type StoryStep = (typeof STORY_STEPS)[number];
 export const NORMAL_MS = 20_000;
 export const OUTAGE_MS = 30_000;
 export const RECOVERY_MAX_MS = 40_000;
-export const STORY_AGENTS = 10;
+const STORY_AGENTS = 10;
 const TRAFFIC_SECONDS =
   Math.ceil((NORMAL_MS + OUTAGE_MS + RECOVERY_MAX_MS) / 1000) + 5;
 
