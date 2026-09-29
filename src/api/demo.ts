@@ -17,6 +17,20 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
       Response.json(await registry.trafficStatus()),
   },
   "/api/demo/traffic/start": { POST: startTraffic },
+  "/api/demo/story": {
+    GET: async (_request, registry) =>
+      Response.json(await registry.storyStatus()),
+    POST: async (_request, registry) => {
+      const started = await registry.startStory();
+      return started.ok
+        ? Response.json(started.status)
+        : jsonError(409, "The outage story is already playing");
+    },
+  },
+  "/api/demo/story/stop": {
+    POST: async (_request, registry) =>
+      Response.json(await registry.stopStory()),
+  },
   "/api/demo/traffic/stop": {
     POST: async (_request, registry) =>
       Response.json(await registry.stopTraffic()),

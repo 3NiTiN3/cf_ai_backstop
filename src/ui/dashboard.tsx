@@ -7,6 +7,7 @@ import { OverviewCards } from "./overview-cards";
 import { QueuePanel } from "./queue-panel";
 import { RepoPanel } from "./repo-panel";
 import { Section } from "./section";
+import { StoryPanel } from "./story-panel";
 import { pickRepo, repoRows } from "./repo-rows";
 import { useOverview } from "./use-overview";
 
@@ -25,6 +26,7 @@ export function Dashboard({ namespace }: { namespace: Namespace }) {
       {namespace === "live" && (
         <LiveBar adminToken={adminToken} onAdminTokenChange={setAdminToken} />
       )}
+      {namespace === "demo" && <StoryPanel />}
       <OverviewCards data={overview.data} error={overview.error} />
       <ChaosPanel namespace={namespace} adminToken={adminToken} />
       <RepoPanel

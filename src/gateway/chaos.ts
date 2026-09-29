@@ -86,6 +86,10 @@ export class CachedChaos {
     return config;
   }
 
+  forget(namespace: Namespace): void {
+    this.entries.delete(namespace);
+  }
+
   async wrap(
     namespace: Namespace,
     call: () => Promise<UpstreamResult>,

@@ -118,6 +118,10 @@ export class RepoGateway extends DurableObject<Env> {
     return response;
   }
 
+  forgetChaos(namespace: Namespace): void {
+    this.chaos.forget(namespace);
+  }
+
   getStats(): RepoStats {
     return {
       counters: this.counters.snapshot(),

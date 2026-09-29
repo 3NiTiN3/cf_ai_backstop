@@ -1,5 +1,7 @@
+import { z } from "zod";
 import { DurableObject } from "cloudflare:workers";
 import { sendToGateway } from "../demo/gateway-client";
+import { StoryRunner, storyHealth, type StoryStatus } from "../demo/story";
 import {
   TICK_MS,
   TrafficRunner,
@@ -8,12 +10,12 @@ import {
 } from "../demo/traffic-runner";
 import { addColumnIfMissing } from "../shared/sql";
 import type { BreakerState } from "./breaker";
-import type { ChaosConfig } from "./chaos";
+import { chaosConfig, type ChaosConfig } from "./chaos";
 import { ChaosStore, type ChaosEvent } from "./chaos-store";
 import type { CounterTotals } from "./counters";
 import { RepoRow, overviewOf, toSummary, type Overview } from "./overview";
 import type { RateBuckets } from "./request-rate";
-import type { Namespace } from "./routes";
+import { durableObjectName, type Namespace } from "./routes";
 import type { HistoryBuckets } from "./upstream-history";
 
 export const REGISTRY_NAME = "global";
@@ -31,6 +33,10 @@ export interface RepoSnapshot {
   p95LatencyMs: number | null;
 }
 
+const ANNOUNCE_LIMIT = 50;
+
+const RepoKeyRow = z.object({ repo_key: z.string() });
+
 const ADDED_COLUMNS: [column: string, definition: string][] = [
   ["breaker", "TEXT NOT NULL DEFAULT 'closed'"],
   ["recent_requests", "TEXT NOT NULL DEFAULT '[]'"],
@@ -47,6 +53,20 @@ export class Registry extends DurableObject<Env> {
     now: () => Date.now(),
     random: Math.random,
     send: (request) => sendToGateway(this.env, request),
+    schedule: (at) => this.ctx.storage.setAlarm(at),
+  });
+  private readonly story = new StoryRunner(this.sql, {
+    now: () => Date.now(),
+    setChaos: (mode) => {
+      this.setChaos("demo", chaosConfig(mode));
+    },
+    startTraffic: async (agents, durationSeconds) => {
+      await this.traffic.start(agents, durationSeconds);
+    },
+    stopTraffic: () => {
+      this.traffic.stop();
+    },
+    health: () => storyHealth(this.overview("demo")),
     schedule: (at) => this.ctx.storage.setAlarm(at),
   });
 
@@ -103,6 +123,7 @@ export class Registry extends DurableObject<Env> {
 
   setChaos(namespace: Namespace, config: ChaosConfig): ChaosConfig {
     this.chaos.set(namespace, config, Date.now());
+    this.ctx.waitUntil(this.announceChaos(namespace));
     return this.chaos.get(namespace);
   }
 
@@ -122,11 +143,44 @@ export class Registry extends DurableObject<Env> {
     return this.traffic.status();
   }
 
+  startStory(): Promise<{ ok: boolean; status: StoryStatus }> {
+    return this.story.start();
+  }
+
+  stopStory(): StoryStatus {
+    return this.story.stop();
+  }
+
+  storyStatus(): StoryStatus {
+    return this.story.status();
+  }
+
   override async alarm(): Promise<void> {
     const started = Date.now();
-    if (await this.traffic.tick()) {
+    const storyActive = this.story.tick();
+    const trafficActive = await this.traffic.tick();
+    if (storyActive || trafficActive) {
       await this.ctx.storage.setAlarm(started + TICK_MS);
     }
+  }
+
+  // Gateways cache chaos briefly; telling them keeps a probe from seeing a stale blackout.
+  private async announceChaos(namespace: Namespace): Promise<void> {
+    const repoKeys = this.sql
+      .exec(
+        "SELECT repo_key FROM repos WHERE namespace = ? ORDER BY reported_at DESC LIMIT ?",
+        namespace,
+        ANNOUNCE_LIMIT,
+      )
+      .toArray()
+      .map((row) => RepoKeyRow.parse(row).repo_key);
+    await Promise.allSettled(
+      repoKeys.map((repoKey) =>
+        this.env.RepoGateway.getByName(
+          durableObjectName({ namespace, repoKey }),
+        ).forgetChaos(namespace),
+      ),
+    );
   }
 
   overview(namespace: Namespace): Overview {
