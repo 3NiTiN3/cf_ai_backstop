@@ -2,6 +2,7 @@ import { REGISTRY_NAME } from "../gateway/registry";
 import { jsonError } from "../gateway/responses";
 import { bodyTooLarge } from "./body";
 import { getChaos, postChaos } from "./chaos";
+import { handleDemoRequest, isDemoPath } from "./demo";
 import { postDevEval } from "./dev-eval";
 import { getIncidents } from "./incidents";
 import { NamespaceQuery } from "./namespace";
@@ -30,6 +31,7 @@ function route(request: Request, url: URL, env: Env): Promise<Response> {
     return notAllowed();
   }
   if (pathname === "/api/dev/eval") return postDevEval(request, env);
+  if (isDemoPath(pathname)) return handleDemoRequest(request, pathname, env);
   if (pathname === "/api/incidents") {
     return method === "GET" ? getIncidents(url, env) : notAllowed();
   }

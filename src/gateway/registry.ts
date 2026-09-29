@@ -1,4 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
+import { sendToGateway } from "../demo/gateway-client";
+import {
+  TICK_MS,
+  TrafficRunner,
+  type StartResult,
+  type TrafficStatus,
+} from "../demo/traffic-runner";
 import { addColumnIfMissing } from "../shared/sql";
 import type { BreakerState } from "./breaker";
 import type { ChaosConfig } from "./chaos";
@@ -36,6 +43,12 @@ const ADDED_COLUMNS: [column: string, definition: string][] = [
 export class Registry extends DurableObject<Env> {
   private readonly sql = this.ctx.storage.sql;
   private readonly chaos = new ChaosStore(this.sql);
+  private readonly traffic = new TrafficRunner(this.sql, {
+    now: () => Date.now(),
+    random: Math.random,
+    send: (request) => sendToGateway(this.env, request),
+    schedule: (at) => this.ctx.storage.setAlarm(at),
+  });
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -95,6 +108,25 @@ export class Registry extends DurableObject<Env> {
 
   chaosEvents(namespace: Namespace, limit: number): ChaosEvent[] {
     return this.chaos.events(namespace, limit);
+  }
+
+  startTraffic(agents: number, durationSeconds: number): Promise<StartResult> {
+    return this.traffic.start(agents, durationSeconds);
+  }
+
+  stopTraffic(): TrafficStatus {
+    return this.traffic.stop();
+  }
+
+  trafficStatus(): TrafficStatus {
+    return this.traffic.status();
+  }
+
+  override async alarm(): Promise<void> {
+    const started = Date.now();
+    if (await this.traffic.tick()) {
+      await this.ctx.storage.setAlarm(started + TICK_MS);
+    }
   }
 
   overview(namespace: Namespace): Overview {

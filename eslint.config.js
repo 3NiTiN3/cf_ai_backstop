@@ -3,7 +3,7 @@ import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 export default defineConfig(
-  { ignores: ["dist", "env.d.ts", ".wrangler"] },
+  { ignores: ["dist", "env.d.ts", ".wrangler", "build"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
