@@ -16,7 +16,7 @@ export function OverviewCards({ data, error }: Polled<OverviewData>) {
         ))}
       </div>
       {error && (
-        <p role="status" className="text-xs text-kumo-danger">
+        <p role="status" className="text-caption text-kumo-danger">
           Could not refresh the overview: {error}
         </p>
       )}

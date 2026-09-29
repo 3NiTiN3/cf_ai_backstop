@@ -12,5 +12,9 @@ const PILLS = {
 
 export function BreakerPill({ state }: { state: BreakerState }) {
   const { label, variant } = PILLS[state];
-  return <Badge variant={variant}>{label}</Badge>;
+  return (
+    <Badge variant={variant} className="transition-colors duration-300">
+      {label}
+    </Badge>
+  );
 }

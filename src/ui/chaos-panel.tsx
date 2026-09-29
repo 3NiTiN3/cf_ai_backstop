@@ -41,9 +41,10 @@ export function ChaosPanel({
       aside={
         <Segmented
           label="Chaos mode"
-          options={CHAOS_PRESETS.map(({ mode, label }) => ({
+          options={CHAOS_PRESETS.map(({ mode, label, tone }) => ({
             value: mode,
             label,
+            tone,
           }))}
           value={chaos.data?.mode ?? null}
           disabled={locked || busy}
@@ -55,7 +56,7 @@ export function ChaosPanel({
       }
     >
       {(failure ?? chaos.error) && (
-        <p role="status" className="text-xs text-kumo-danger">
+        <p role="status" className="text-caption text-kumo-danger">
           {failure ?? `Could not load chaos settings: ${chaos.error}`}
         </p>
       )}

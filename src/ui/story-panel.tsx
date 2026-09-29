@@ -14,7 +14,7 @@ import {
 const DOT: Record<StepState, string> = {
   done: "bg-kumo-success",
   current: "bg-kumo-brand animate-pulse",
-  upcoming: "bg-kumo-control",
+  upcoming: "bg-kumo-line",
 };
 
 export function StoryPanel() {
@@ -63,11 +63,11 @@ export function StoryPanel() {
             <li
               key={id}
               aria-current={state === "current" ? "step" : undefined}
-              className="flex items-center gap-2 text-xs"
+              className="flex items-center gap-2 text-caption"
             >
               <span
                 aria-hidden
-                className={`size-2 shrink-0 rounded-full ${DOT[state]}`}
+                className={`size-2 shrink-0 rounded-full transition-colors duration-500 ${DOT[state]}`}
               />
               <span
                 className={
@@ -81,12 +81,16 @@ export function StoryPanel() {
             </li>
           ))}
         </ol>
-        <p role="status" className="text-sm text-kumo-subtle">
+        <p
+          key={step}
+          role="status"
+          className="text-body text-kumo-subtle animate-enter"
+        >
           {storyCaption(step)}
         </p>
       </div>
       {failure && (
-        <p role="alert" className="text-xs text-kumo-danger">
+        <p role="alert" className="text-caption text-kumo-danger">
           {failure}
         </p>
       )}
@@ -107,7 +111,7 @@ function StopButton({
       aria-label="Stop the outage story"
       disabled={disabled}
       onClick={onClick}
-      className="group inline-flex h-6.5 min-w-24 items-center justify-center gap-1.5 rounded-md bg-kumo-brand px-3 text-xs font-medium text-white transition-colors hover:bg-coral focus-visible:bg-coral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus active:scale-[0.97] disabled:opacity-60"
+      className="group inline-flex h-6.5 min-w-24 items-center justify-center gap-1.5 rounded-md bg-kumo-brand px-3 text-caption font-medium text-white transition-colors hover:bg-coral focus-visible:bg-coral focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus active:scale-[0.97] disabled:opacity-60"
     >
       <span className="size-1.5 rounded-full bg-white animate-pulse group-hover:hidden group-focus-visible:hidden" />
       <StopIcon

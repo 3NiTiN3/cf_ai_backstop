@@ -23,12 +23,12 @@ export function RepoTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-kumo-line bg-kumo-base">
-      <table className="w-full text-sm">
+      <table className="w-full text-body">
         <caption className="sr-only">
           Repos seen by the gateway. Select one to see its timeline.
         </caption>
         <thead>
-          <tr className="text-left text-xs text-kumo-subtle border-b border-kumo-line">
+          <tr className="border-b border-kumo-line text-left text-caption text-kumo-subtle">
             {HEADERS.map((header) => (
               <th
                 key={header}
@@ -47,7 +47,7 @@ export function RepoTable({
               <tr
                 key={row.repoKey}
                 onClick={() => onSelect(row.repoKey)}
-                className={`border-b border-kumo-line last:border-0 cursor-pointer ${isSelected ? "bg-kumo-control" : "hover:bg-kumo-elevated"}`}
+                className={`cursor-pointer border-b border-kumo-line transition-colors duration-200 last:border-0 ${isSelected ? "bg-kumo-control" : "hover:bg-kumo-elevated"}`}
               >
                 <th scope="row" className="px-3 py-2 text-left font-medium">
                   <button
@@ -82,7 +82,7 @@ export function RepoTable({
 
 function Cell({ children }: { children: string }) {
   return (
-    <td className="px-3 py-2 tabular-nums text-kumo-default whitespace-nowrap">
+    <td className="px-3 py-2 font-figures text-caption whitespace-nowrap text-kumo-default">
       {children}
     </td>
   );

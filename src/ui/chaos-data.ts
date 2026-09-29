@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CHAOS_MODES, type ChaosMode } from "../gateway/chaos";
 import type { Namespace } from "../gateway/routes";
 import { getJson, postJson } from "./api-client";
+import type { Tone } from "./segmented";
 import { usePoll } from "./use-poll";
 
 const ChaosSchema = z.object({
@@ -14,14 +15,15 @@ const ChaosSchema = z.object({
 export interface ChaosPreset {
   label: string;
   mode: ChaosMode;
+  tone: Tone;
   errorRate?: number;
 }
 
 export const CHAOS_PRESETS: ChaosPreset[] = [
-  { label: "Normal", mode: "off" },
-  { label: "Errors 50%", mode: "errors", errorRate: 0.5 },
-  { label: "Slow", mode: "latency" },
-  { label: "Blackout", mode: "blackout" },
+  { label: "Normal", mode: "off", tone: "success" },
+  { label: "Errors 50%", mode: "errors", tone: "warning", errorRate: 0.5 },
+  { label: "Slow", mode: "latency", tone: "info" },
+  { label: "Blackout", mode: "blackout", tone: "danger" },
 ];
 
 export function useChaos(namespace: Namespace) {

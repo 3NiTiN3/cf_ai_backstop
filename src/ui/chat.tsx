@@ -85,9 +85,7 @@ export function Chat({ namespace }: { namespace: Namespace }) {
     <div className="flex flex-col h-full bg-kumo-elevated">
       <div className="px-4 py-3 bg-kumo-base border-b border-kumo-line flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-kumo-default">
-            Ops chat
-          </h2>
+          <h2 className="text-heading text-kumo-default">Ops chat</h2>
           <ConnectionStatus connected={connected} />
         </div>
         <div className="flex items-center gap-3">
@@ -120,7 +118,7 @@ export function Chat({ namespace }: { namespace: Namespace }) {
       >
         <div className="px-4 py-5 space-y-5">
           {messages.length === 0 && (
-            <p className="pt-8 text-center text-sm text-kumo-subtle">
+            <p className="pt-8 text-center text-body text-kumo-subtle">
               Ask about the gateway, for example &ldquo;Is demo/api
               healthy?&rdquo;
             </p>
@@ -138,7 +136,7 @@ export function Chat({ namespace }: { namespace: Namespace }) {
             }
 
             return (
-              <div key={message.id} className="space-y-2">
+              <div key={message.id} className="animate-enter space-y-2">
                 {showDebug && (
                   <pre
                     tabIndex={0}

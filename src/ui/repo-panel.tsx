@@ -23,7 +23,7 @@ export function RepoPanel({
       <PanelBody data={rows} error={error} what="repos" skeletonClass="h-40">
         {(loaded) =>
           loaded.length === 0 ? (
-            <p className="text-sm text-kumo-subtle">
+            <p className="text-body text-kumo-subtle">
               No traffic yet. Send a request through{" "}
               <code className="text-kumo-default">
                 {prefix}/repos/owner/name

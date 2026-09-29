@@ -16,7 +16,7 @@ export function PanelBody<T>({
   if (data === null) {
     if (error) {
       return (
-        <p role="alert" className="text-sm text-kumo-danger">
+        <p role="alert" className="text-body text-kumo-danger">
           Could not load {what}: {error}
         </p>
       );
@@ -33,7 +33,7 @@ export function PanelBody<T>({
   return (
     <>
       {error && (
-        <p role="status" className="text-xs text-kumo-danger">
+        <p role="status" className="text-caption text-kumo-danger">
           Could not refresh {what}: {error}. Showing the last data loaded.
         </p>
       )}

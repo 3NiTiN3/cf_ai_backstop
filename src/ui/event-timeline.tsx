@@ -38,21 +38,21 @@ export function EventTimeline({
       >
         {(entries) =>
           entries.length === 0 ? (
-            <p className="text-sm text-kumo-subtle">No events yet.</p>
+            <p className="text-body text-kumo-subtle">No events yet.</p>
           ) : (
             <ol
               tabIndex={0}
               aria-label={`Events for ${repoKey}, newest first`}
               className="relative max-h-96 overflow-y-auto rounded-xl border border-kumo-line bg-kumo-base divide-y divide-kumo-line focus-visible:outline-2 focus-visible:outline-kumo-focus"
             >
-              {entries.map((entry, index) => (
+              {withKeys(entries).map(({ key, entry }) => (
                 <li
-                  key={`${entry.at}-${index}`}
-                  className="flex items-baseline gap-3 px-3 py-2 text-sm"
+                  key={key}
+                  className="flex items-baseline gap-3 px-3 py-2 text-body animate-enter"
                 >
                   <time
                     dateTime={new Date(entry.at).toISOString()}
-                    className="w-16 shrink-0 text-xs tabular-nums text-kumo-subtle"
+                    className="w-16 shrink-0 font-figures text-caption text-kumo-subtle"
                   >
                     {clock(entry.at)}
                   </time>
@@ -76,4 +76,14 @@ export function EventTimeline({
 
 function clock(at: number): string {
   return new Date(at).toLocaleTimeString("en-GB", { hour12: false });
+}
+
+function withKeys(entries: TimelineEntry[]) {
+  const seen = new Map<string, number>();
+  return entries.map((entry) => {
+    const base = `${entry.at}-${entry.kind}-${entry.text}`;
+    const count = (seen.get(base) ?? 0) + 1;
+    seen.set(base, count);
+    return { key: `${base}-${count}`, entry };
+  });
 }

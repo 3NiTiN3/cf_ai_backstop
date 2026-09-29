@@ -21,8 +21,8 @@ export function Section({
           id={id}
           className={
             level === 2
-              ? "text-sm font-semibold tracking-tight text-kumo-default"
-              : "text-xs font-medium text-kumo-subtle"
+              ? "text-heading text-kumo-default"
+              : "text-subhead text-kumo-subtle"
           }
         >
           {title}
